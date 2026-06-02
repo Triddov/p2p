@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'p2p-server/**'
+  workflow_dispatch:
 
 jobs:
   # test:
