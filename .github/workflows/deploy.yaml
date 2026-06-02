@@ -37,7 +37,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: p2p-server/
-          file: Dockerfile.api
+          file: p2p-server/Dockerfile.api
           platforms: linux/amd64
           push: true
           tags: triddov/p2p-api:latest
@@ -48,7 +48,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: p2p-server/
-          file: Dockerfile.signaling
+          file: p2p-server/Dockerfile.signaling
           platforms: linux/amd64
           push: true
           tags: triddov/p2p-signaling:latest
@@ -63,7 +63,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "docker-compose.yaml"
+          source: "p2p-server/docker-compose.yaml"
           target: "~/apps/p2p-backend"
 
       - name: Copy sql init
