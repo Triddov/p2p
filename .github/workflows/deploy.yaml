@@ -3,6 +3,8 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths:
+      - 'p2p-server/**'
 
 jobs:
   # test:
@@ -33,26 +35,22 @@ jobs:
       - name: Build & Push p2p-api
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: p2p-server/
           file: Dockerfile.api
           platforms: linux/amd64
           push: true
-          tags: |
-            triddov/p2p-api:latest
-            triddov/p2p-api:${{ github.sha }}
+          tags: triddov/p2p-api:latest
           cache-from: type=gha,scope=p2p-api
           cache-to: type=gha,mode=max,scope=p2p-api
 
       - name: Build & Push p2p-signaling
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: p2p-server/
           file: Dockerfile.signaling
           platforms: linux/amd64
           push: true
-          tags: |
-            triddov/p2p-signaling:latest
-            triddov/p2p-signaling:${{ github.sha }}
+          tags: triddov/p2p-signaling:latest
           cache-from: type=gha,scope=p2p-signaling
           cache-to: type=gha,mode=max,scope=p2p-signaling
 
@@ -60,16 +58,30 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
           source: "docker-compose.yaml"
-          target: "/home/triddov/apps/p2p-backend"
+          target: "~/apps/p2p-backend"
+
+      - name: Copy sql init
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: "p2p-server/sql/init/schema.sql"
+          target: "~/apps/p2p-backend/sql/init"    
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            $HOME/apps/p2p-backend/start_script.sh
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: $HOME/apps/p2p-backend/start_script.sh
