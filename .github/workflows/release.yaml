@@ -9,6 +9,8 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -20,24 +22,31 @@ jobs:
           distribution: 'temurin'
 
       - name: Build Release APK
+        working-directory: p2p-client/
         run: ./gradlew assembleRelease
+
+      - name: Setup Android Build Tools
+        run: |
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0"
 
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1
         id: sign_apk
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
         with:
           releaseDirectory: p2p-client/app/build/outputs/apk/release
           signingKeyBase64: ${{ secrets.SIGNING_KEY }}
           alias: ${{ secrets.KEY_ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
-          
+
       - name: Rename APK
-        run: mv ${{ steps.sign_apk.outputs.signedReleaseFile }} p2p-${{ github.ref_name }}.apk
-        
+        run: mv "${{ steps.sign_apk.outputs.signedReleaseFile }}" p2p-${{ github.ref_name }}.apk
+
       - name: Publish Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ steps.sign_apk.outputs.signedReleaseFile }}
+          files: p2p-${{ github.ref_name }}.apk
           body: "Release ${{ github.ref_name }}"
-          
