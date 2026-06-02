@@ -1,7 +1,7 @@
 # Point & Point — P2P Messenger
 
-![Build](https://img.shields.io/github/actions/workflow/status/Triddov/p2p-server/build.yml?branch=main&label=build&logo=github)
-![Deploy](https://img.shields.io/github/actions/workflow/status/Triddov/p2p-server/deploy.yml?branch=main&label=deploy&logo=github)
+![Build](https://img.shields.io/github/actions/workflow/status/Triddov/p2p/release.yml?branch=main&label=release&logo=github)
+![Deploy](https://img.shields.io/github/actions/workflow/status/Triddov/p2p/deploy.yml?branch=main&label=deploy&logo=github)
 ![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-Kotlin-7F52FF?logo=kotlin&logoColor=white)
 ![Docker](https://img.shields.io/docker/image-size/triddov/p2p-api/latest?label=api%20image&logo=docker)
@@ -12,7 +12,6 @@
 
 >  Курсовой проект
 
----
 
 ## Architecture
 
@@ -42,7 +41,6 @@
 └───────────────────┘      └─────────────────────┘
 ```
 
----
 
 ## Stack
 
@@ -54,7 +52,6 @@
 | coturn (TURN) | WebRTC (DataChannel) |
 | Docker, Nginx | OkHttp, Retrofit |
 
----
 
 ## Features
 
@@ -65,7 +62,6 @@
 - **QR-верификация** — обмен публичными ключами через QR для защиты от MITM.
 - **JWT** — HS256, поддержка refresh-токена.
 
----
 
 ## Quick Start
 
@@ -97,7 +93,6 @@ make run-sign     # запустить Signaling без Docker
 2. В `di/AppModule.kt` заменить `baseUrl` на адрес своего сервера.
 3. Запустить на устройстве или эмуляторе (API 26+).
 
----
 
 ## Environment Variables
 
@@ -111,7 +106,6 @@ make run-sign     # запустить Signaling без Docker
 | `TURN_REALM / USER / PASSWORD / EXTERNAL_IP` | coturn |
 | `ENVIRONMENT` | `production` включает `gin.ReleaseMode` |
 
----
 
 ## Project Structure
 
@@ -130,7 +124,6 @@ make run-sign     # запустить Signaling без Docker
         └── domain/      — крипто, signaling, WebRTC
 ```
 
----
 
 ## Known Limitations
 
@@ -139,7 +132,6 @@ make run-sign     # запустить Signaling без Docker
 - Нет push-уведомлений — сообщения подтягиваются при открытии приложения.
 - TURN-сервер на том же хосте что и API.
 
----
 
 ## License
 
