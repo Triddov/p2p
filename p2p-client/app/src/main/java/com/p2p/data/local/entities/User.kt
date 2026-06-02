@@ -1,0 +1,129 @@
+package com.p2p.data.local.entities
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "local_profile")
+data class LocalProfile(
+    @PrimaryKey
+    val userId: String,
+    val email: String,
+    val username: String?,
+    val identityPublicKey: ByteArray,
+    val accessToken: String,
+    val refreshToken: String = "",
+    val createdAt: Long = System.currentTimeMillis()
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as LocalProfile
+        return userId == other.userId
+    }
+
+    override fun hashCode(): Int = userId.hashCode()
+}
+
+@Entity(tableName = "verified_contacts")
+data class VerifiedContact(
+    @PrimaryKey
+    val userId: String,
+    val username: String?,
+    val identityPublicKey: ByteArray,
+    val verifiedAt: Long,
+    val verificationMethod: String, // "qr_scan" or "fingerprint_voice"
+    val lastSeen: Long? = null
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as VerifiedContact
+        return userId == other.userId
+    }
+
+    override fun hashCode(): Int = userId.hashCode()
+}
+
+@Entity(tableName = "chats")
+data class Chat(
+    @PrimaryKey
+    val id: String,
+    val peerUserId: String,
+    val peerUsername: String?,
+    val lastMessageText: String?,
+    val lastMessageAt: Long?,
+    val unreadCount: Int = 0
+)
+
+@Entity(tableName = "messages")
+data class Message(
+    @PrimaryKey
+    val id: String,
+    val chatId: String,
+    val content: String,
+    val timestamp: Long,
+    val senderId: String, // "me" or peer user ID
+    val status: MessageStatus,
+    val isEncrypted: Boolean = true
+)
+
+enum class MessageStatus {
+    SENDING,
+    SENT,
+    DELIVERED,
+    READ,
+    FAILED
+}
+
+// Signal Protocol storage entities
+
+// Собственная identity key pair + registration ID (единственная запись, id = 1)
+@Entity(tableName = "signal_own_identity")
+data class SignalOwnIdentity(
+    @PrimaryKey val id: Int = 1,
+    val identityKeyPairBytes: ByteArray,
+    val registrationId: Int
+) {
+    override fun equals(other: Any?) = other is SignalOwnIdentity && id == other.id
+    override fun hashCode() = id
+}
+
+// Trusted identity keys контактов (TOFU)
+@Entity(tableName = "signal_trusted_identities")
+data class SignalTrustedIdentity(
+    @PrimaryKey val address: String, // "userId:deviceId"
+    val identityKeyBytes: ByteArray
+) {
+    override fun equals(other: Any?) = other is SignalTrustedIdentity && address == other.address
+    override fun hashCode() = address.hashCode()
+}
+
+// Наши собственные one-time prekeys (хранятся до потребления сервером)
+@Entity(tableName = "signal_prekeys")
+data class SignalPreKeyEntity(
+    @PrimaryKey val preKeyId: Int,
+    val serializedRecord: ByteArray
+) {
+    override fun equals(other: Any?) = other is SignalPreKeyEntity && preKeyId == other.preKeyId
+    override fun hashCode() = preKeyId
+}
+
+// Наш активный signed prekey
+@Entity(tableName = "signal_signed_prekeys")
+data class SignalSignedPreKeyEntity(
+    @PrimaryKey val signedPreKeyId: Int,
+    val serializedRecord: ByteArray
+) {
+    override fun equals(other: Any?) = other is SignalSignedPreKeyEntity && signedPreKeyId == other.signedPreKeyId
+    override fun hashCode() = signedPreKeyId
+}
+
+// Double Ratchet состояние сессии с каждым собеседником
+@Entity(tableName = "signal_sessions")
+data class SignalSessionEntity(
+    @PrimaryKey val address: String, // "userId:deviceId"
+    val serializedRecord: ByteArray
+) {
+    override fun equals(other: Any?) = other is SignalSessionEntity && address == other.address
+    override fun hashCode() = address.hashCode()
+}

@@ -1,0 +1,9 @@
+bin/
+dist/
+
+.*env*
+.DS_Store
+
+nginx/p2p.conf
+todo
+api_test.txt
