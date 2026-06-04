@@ -1,7 +1,7 @@
 # Point & Point — P2P Messenger
 
-![Release](https://img.shields.io/github/actions/workflow/status/Triddov/p2p/release.yml?branch=main&label=release&logo=github)
-![Deploy](https://img.shields.io/github/actions/workflow/status/Triddov/p2p/deploy.yml?branch=main&label=deploy&logo=github)
+![Release](https://img.shields.io/github/actions/workflow/status/Triddov/p2p/release.yaml?branch=main&label=release&logo=github)
+![Deploy](https://img.shields.io/github/actions/workflow/status/Triddov/p2p/deploy.yaml?branch=main&label=deploy&logo=github)
 ![Go](https://img.shields.io/badge/Go-1.25-00ADD8?logo=go&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-Kotlin-7F52FF?logo=kotlin&logoColor=white)
 ![Docker](https://img.shields.io/docker/image-size/triddov/p2p-api/latest?label=api%20image&logo=docker)
