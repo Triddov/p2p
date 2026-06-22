@@ -43,7 +43,6 @@ fun ChatScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is ChatUiState.MessageSent) {
-            messageText = TextFieldValue("")
             viewModel.resetState()
         }
     }
@@ -113,8 +112,12 @@ fun ChatScreen(
 
                     IconButton(
                         onClick = {
-                            if (messageText.text.isNotBlank()) {
-                                viewModel.sendMessage(messageText.text)
+                            val text = messageText.text
+                            if (text.isNotBlank()) {
+                                viewModel.sendMessage(text)
+                                // Очищаем поле сразу: сообщение уже сохранено локально,
+                                // его статус (отправка/доставлено/ошибка) виден на «пузыре»
+                                messageText = TextFieldValue("")
                             }
                         },
                         enabled = messageText.text.isNotBlank() && uiState !is ChatUiState.Sending

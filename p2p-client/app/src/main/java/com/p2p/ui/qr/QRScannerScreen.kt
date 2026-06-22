@@ -1,5 +1,9 @@
 package com.p2p.ui.qr
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -11,7 +15,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
@@ -38,6 +44,24 @@ fun QRScannerScreen(
 
     val uiState by viewModel.uiState.collectAsState()
 
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context, Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> hasCameraPermission = granted }
+
+    // Запрос разрешения при первом открытии экрана (иначе камера не привяжется — чёрный экран)
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     LaunchedEffect(uiState) {
         if (uiState is com.p2p.ui.contacts.ContactsUiState.ContactVerified) {
             onQRScanned()
@@ -57,6 +81,7 @@ fun QRScannerScreen(
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (hasCameraPermission) {
             AndroidView(
                 factory = { ctx ->
                     val previewView = PreviewView(ctx)
@@ -124,6 +149,34 @@ fun QRScannerScreen(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Camera permission is required to scan QR codes")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                        Text("Grant camera")
+                    }
+                }
+            }
+
+            // Альтернатива сканированию: вставить ключ текстом из буфера обмена
+            val clipboard = LocalClipboardManager.current
+            OutlinedButton(
+                onClick = {
+                    clipboard.getText()?.text?.takeIf { it.isNotBlank() }?.let { pasted ->
+                        viewModel.handleScannedQR(pasted)
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+            ) {
+                Text("Paste key from clipboard")
+            }
 
             when (val state = uiState) {
                 is com.p2p.ui.contacts.ContactsUiState.Loading -> {

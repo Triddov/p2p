@@ -2,15 +2,20 @@ package com.p2p.ui.qr
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.zxing.BarcodeFormat
@@ -30,13 +35,18 @@ fun MyQRScreen(
     val profile = authRepository.getLocalProfileFlow().collectAsState(initial = null)
 
     var qrBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var qrContent by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(profile.value) {
         profile.value?.let { p ->
-            val qrContent = viewModel.generateMyQRCode(p.userId, p.username)
-            qrBitmap = generateQRCode(qrContent)
+            val content = viewModel.generateMyQRCode(p.userId, p.username)
+            qrContent = content
+            qrBitmap = generateQRCode(content)
         }
     }
+
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -84,6 +94,23 @@ fun MyQRScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // скопировать ключ текстом и передать любым способом
+            OutlinedButton(
+                onClick = {
+                    qrContent?.let { content ->
+                        clipboard.setText(AnnotatedString(content))
+                        Toast.makeText(context, "Key has copied", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                enabled = qrContent != null
+            ) {
+                Icon(Icons.Default.ContentCopy, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Copy key")
             }
         }
     }
