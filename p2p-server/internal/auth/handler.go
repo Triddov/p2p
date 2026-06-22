@@ -24,6 +24,17 @@ type RequestCodeResponse struct {
 	RetryAfter *int   `json:"retry_after,omitempty"`
 }
 
+// RequestCode godoc
+// @Summary      Запросить код подтверждения
+// @Description  Отправляет 6-значный код на email. Действует ограничение по частоте отправки.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      RequestCodeRequest  true  "Email и идентификатор устройства"
+// @Success      200      {object}  RequestCodeResponse
+// @Failure      400      {object}  map[string]string
+// @Failure      429      {object}  map[string]string
+// @Router       /auth/request-code [post]
 func (h *Handler) RequestCode(c *gin.Context) {
 	var req RequestCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,6 +69,18 @@ type VerifyCodeResponse struct {
 	IdentityPublicKey string `json:"identity_public_key"`
 }
 
+// VerifyCode godoc
+// @Summary      Подтвердить код и зарегистрироваться/войти
+// @Description  Проверяет код, при первом входе регистрирует пользователя с его identity-ключом.
+// @Description  Возвращает пару токенов (access + refresh).
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      VerifyCodeRequest  true  "Код, email, устройство и публичный identity-ключ (base64)"
+// @Success      200      {object}  VerifyCodeResponse
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Router       /auth/verify [post]
 func (h *Handler) VerifyCode(c *gin.Context) {
 	var req VerifyCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -95,6 +118,17 @@ type RefreshTokenResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
+// RefreshToken godoc
+// @Summary      Обновить пару токенов
+// @Description  Принимает refresh-токен, ротирует его и возвращает новую пару access + refresh.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      RefreshTokenRequest  true  "Действующий refresh-токен"
+// @Success      200      {object}  RefreshTokenResponse
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Router       /auth/refresh [post]
 func (h *Handler) RefreshToken(c *gin.Context) {
 	var req RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -122,6 +156,18 @@ type SetUsernameResponse struct {
 	Username string `json:"username"`
 }
 
+// SetUsername godoc
+// @Summary      Установить username
+// @Description  Задаёт уникальный username текущего пользователя (3–32 символа). Обязателен после регистрации.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      SetUsernameRequest  true  "Желаемый username"
+// @Success      200      {object}  SetUsernameResponse
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Router       /users/set-username [post]
 func (h *Handler) SetUsername(c *gin.Context) {
 	userID := c.GetString("user_id")
 

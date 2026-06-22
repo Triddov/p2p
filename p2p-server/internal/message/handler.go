@@ -37,6 +37,20 @@ type StoreMessageResponse struct {
     WillNotify bool   `json:"will_notify"`
 }
 
+// StoreMessage godoc
+// @Summary      Сохранить сообщение для оффлайн-доставки
+// @Description  Кладёт E2EE-зашифрованное сообщение в очередь получателя. Сервер не может его расшифровать.
+// @Description  ciphertext передаётся в base64. Используется, когда получатель недоступен по P2P.
+// @Tags         Messages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      StoreMessageRequest  true  "Зашифрованное сообщение"
+// @Success      200      {object}  StoreMessageResponse
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /messages/store [post]
 func (h *Handler) StoreMessage(c *gin.Context) {
     senderID := c.GetString("user_id")
 
@@ -79,6 +93,17 @@ type PendingMessagesResponse struct {
     Messages []PendingMessageDTO `json:"messages"`
 }
 
+// GetPendingMessages godoc
+// @Summary      Получить недоставленные сообщения
+// @Description  Возвращает до 100 ожидающих сообщений текущего пользователя. ciphertext — в base64.
+// @Description  После сохранения на клиенте их следует подтвердить через /messages/ack.
+// @Tags         Messages
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  PendingMessagesResponse
+// @Failure      401  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /messages/pending [get]
 func (h *Handler) GetPendingMessages(c *gin.Context) {
     recipientID := c.GetString("user_id")
 
@@ -100,6 +125,19 @@ type AckMessagesRequest struct {
     MessageIDs []string `json:"message_ids" binding:"required"`
 }
 
+// AckMessages godoc
+// @Summary      Подтвердить доставку сообщений
+// @Description  Помечает перечисленные сообщения как доставленные, чтобы они больше не выдавались.
+// @Tags         Messages
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      AckMessagesRequest  true  "Список ID сообщений"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /messages/ack [post]
 func (h *Handler) AckMessages(c *gin.Context) {
     recipientID := c.GetString("user_id")
 

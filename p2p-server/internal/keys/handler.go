@@ -46,10 +46,21 @@ type OTKCountResponse struct {
 	Count int `json:"count"`
 }
 
-// Handlers
 
-// RegisterPrekeys загружает signed prekey и пакет OTK на сервер.
-// Вызывается при первом запуске и при ротации/пополнении.
+// RegisterPrekeys godoc
+// @Summary      Загрузить prekey-бандл
+// @Description  Загружает signed prekey и пакет one-time prekeys текущего пользователя.
+// @Description  Все ключи передаются в base64. Вызывается при первом запуске и при пополнении пула.
+// @Tags         Keys
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      RegisterPrekeysRequest  true  "Identity-ключ, signed prekey и OTK"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /keys/prekeys [put]
 func (h *Handler) RegisterPrekeys(c *gin.Context) {
 	userID := c.GetString("user_id")
 
@@ -106,8 +117,20 @@ func (h *Handler) RegisterPrekeys(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+// GetPrekeyBundle godoc
+// @Summary      Получить prekey-бандл собеседника
+// @Description  Возвращает prekey-бандл указанного пользователя для установки X3DH-сессии.
+// @Description  Атомарно расходует один OTK из его пула (если есть). Ключи — в base64.
+// @Tags         Keys
+// @Produce      json
+// @Security     BearerAuth
+// @Param        userId  path      string  true  "ID пользователя (UUID)"
+// @Success      200     {object}  PrekeyBundleResponse
+// @Failure      401     {object}  map[string]string
+// @Failure      404     {object}  map[string]string
+// @Router       /keys/{userId} [get]
+//
 // GetPrekeyBundle возвращает prekey bundle собеседника для установки X3DH сессии.
-// Атомарно расходует один OTK из пула.
 func (h *Handler) GetPrekeyBundle(c *gin.Context) {
 	targetUserID := c.Param("userId")
 
@@ -132,7 +155,17 @@ func (h *Handler) GetPrekeyBundle(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-// GetOTKCount возвращает количество оставшихся OTK текущего пользователя.
+// GetOTKCount godoc
+// @Summary      Количество оставшихся OTK
+// @Description  Возвращает число неизрасходованных one-time prekeys текущего пользователя.
+// @Description  Клиент использует это для своевременного пополнения пула.
+// @Tags         Keys
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  OTKCountResponse
+// @Failure      401  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /keys/count [get]
 func (h *Handler) GetOTKCount(c *gin.Context) {
 	userID := c.GetString("user_id")
 

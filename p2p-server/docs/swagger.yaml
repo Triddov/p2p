@@ -1,0 +1,689 @@
+basePath: /api
+definitions:
+  internal_auth.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  internal_auth.RefreshTokenResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  internal_auth.RequestCodeRequest:
+    properties:
+      device_id:
+        type: string
+      email:
+        type: string
+    required:
+    - device_id
+    - email
+    type: object
+  internal_auth.RequestCodeResponse:
+    properties:
+      retry_after:
+        type: integer
+      status:
+        type: string
+    type: object
+  internal_auth.SetUsernameRequest:
+    properties:
+      username:
+        maxLength: 32
+        minLength: 3
+        type: string
+    required:
+    - username
+    type: object
+  internal_auth.SetUsernameResponse:
+    properties:
+      username:
+        type: string
+    type: object
+  internal_auth.VerifyCodeRequest:
+    properties:
+      code:
+        type: string
+      device_id:
+        type: string
+      email:
+        type: string
+      identity_public_key:
+        type: string
+    required:
+    - code
+    - device_id
+    - email
+    - identity_public_key
+    type: object
+  internal_auth.VerifyCodeResponse:
+    properties:
+      access_token:
+        type: string
+      email:
+        type: string
+      identity_public_key:
+        type: string
+      refresh_token:
+        type: string
+      user_id:
+        type: string
+    type: object
+  internal_keys.OTKCountResponse:
+    properties:
+      count:
+        type: integer
+    type: object
+  internal_keys.OneTimePrekeyDTO:
+    properties:
+      id:
+        type: integer
+      public_key:
+        description: base64
+        type: string
+    required:
+    - id
+    - public_key
+    type: object
+  internal_keys.PrekeyBundleResponse:
+    properties:
+      identity_key:
+        type: string
+      one_time_prekey:
+        type: string
+      one_time_prekey_id:
+        type: integer
+      registration_id:
+        type: integer
+      signed_prekey:
+        type: string
+      signed_prekey_id:
+        type: integer
+      signed_prekey_signature:
+        type: string
+    type: object
+  internal_keys.RegisterPrekeysRequest:
+    properties:
+      identity_key:
+        description: base64
+        type: string
+      one_time_prekeys:
+        items:
+          $ref: '#/definitions/internal_keys.OneTimePrekeyDTO'
+        type: array
+      registration_id:
+        type: integer
+      signed_prekey:
+        description: base64
+        type: string
+      signed_prekey_id:
+        type: integer
+      signed_prekey_signature:
+        description: base64
+        type: string
+    required:
+    - identity_key
+    - registration_id
+    - signed_prekey
+    - signed_prekey_id
+    - signed_prekey_signature
+    type: object
+  internal_message.AckMessagesRequest:
+    properties:
+      message_ids:
+        items:
+          type: string
+        type: array
+    required:
+    - message_ids
+    type: object
+  internal_message.InitialMessageDTO:
+    properties:
+      sender_ephemeral_key:
+        type: string
+      sender_identity_key:
+        type: string
+    type: object
+  internal_message.PendingMessageDTO:
+    properties:
+      ciphertext:
+        type: string
+      id:
+        type: string
+      message_type:
+        type: integer
+      sender_id:
+        type: string
+      timestamp:
+        type: integer
+    type: object
+  internal_message.PendingMessagesResponse:
+    properties:
+      messages:
+        items:
+          $ref: '#/definitions/internal_message.PendingMessageDTO'
+        type: array
+    type: object
+  internal_message.StoreMessageRequest:
+    properties:
+      ciphertext:
+        type: string
+      initial_message:
+        $ref: '#/definitions/internal_message.InitialMessageDTO'
+      message_id:
+        type: string
+      message_type:
+        type: integer
+      ratchet_index:
+        type: integer
+      recipient_id:
+        type: string
+      sender_id:
+        type: string
+      timestamp:
+        type: integer
+    required:
+    - ciphertext
+    - message_id
+    - recipient_id
+    - sender_id
+    - timestamp
+    type: object
+  internal_message.StoreMessageResponse:
+    properties:
+      message_id:
+        type: string
+      status:
+        type: string
+      will_notify:
+        type: boolean
+    type: object
+  internal_user.SearchUserResponse:
+    properties:
+      found:
+        type: boolean
+      user:
+        $ref: '#/definitions/internal_user.UserDTO'
+    type: object
+  internal_user.UserDTO:
+    properties:
+      id:
+        type: string
+      identity_public_key:
+        type: string
+      last_seen:
+        type: string
+      username:
+        type: string
+    type: object
+info:
+  contact:
+    name: Triddov
+    url: https://github.com/Triddov
+  description: |-
+    REST API peer-to-peer мессенджера: аутентификация по email-коду,
+    управление профилем, обмен оффлайн-сообщениями (E2EE) и распространение
+    Signal Protocol prekey-бандлов. Сервер не может расшифровать сообщения.
+    WebRTC-сигналинг вынесен в отдельный сервис и здесь не документируется.
+  license:
+    name: See repository LICENCE
+  title: P2P Messenger REST API
+  version: "1.0"
+paths:
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Принимает refresh-токен, ротирует его и возвращает новую пару access
+        + refresh.
+      parameters:
+      - description: Действующий refresh-токен
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.RefreshTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Обновить пару токенов
+      tags:
+      - Auth
+  /auth/request-code:
+    post:
+      consumes:
+      - application/json
+      description: Отправляет 6-значный код на email. Действует ограничение по частоте
+        отправки.
+      parameters:
+      - description: Email и идентификатор устройства
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.RequestCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.RequestCodeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "429":
+          description: Too Many Requests
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Запросить код подтверждения
+      tags:
+      - Auth
+  /auth/verify:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Проверяет код, при первом входе регистрирует пользователя с его identity-ключом.
+        Возвращает пару токенов (access + refresh).
+      parameters:
+      - description: Код, email, устройство и публичный identity-ключ (base64)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.VerifyCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.VerifyCodeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Подтвердить код и зарегистрироваться/войти
+      tags:
+      - Auth
+  /keys/{userId}:
+    get:
+      description: |-
+        Возвращает prekey-бандл указанного пользователя для установки X3DH-сессии.
+        Атомарно расходует один OTK из его пула (если есть). Ключи — в base64.
+      parameters:
+      - description: ID пользователя (UUID)
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_keys.PrekeyBundleResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить prekey-бандл собеседника
+      tags:
+      - Keys
+  /keys/count:
+    get:
+      description: |-
+        Возвращает число неизрасходованных one-time prekeys текущего пользователя.
+        Клиент использует это для своевременного пополнения пула.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_keys.OTKCountResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Количество оставшихся OTK
+      tags:
+      - Keys
+  /keys/prekeys:
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Загружает signed prekey и пакет one-time prekeys текущего пользователя.
+        Все ключи передаются в base64. Вызывается при первом запуске и при пополнении пула.
+      parameters:
+      - description: Identity-ключ, signed prekey и OTK
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_keys.RegisterPrekeysRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Загрузить prekey-бандл
+      tags:
+      - Keys
+  /messages/ack:
+    post:
+      consumes:
+      - application/json
+      description: Помечает перечисленные сообщения как доставленные, чтобы они больше
+        не выдавались.
+      parameters:
+      - description: Список ID сообщений
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_message.AckMessagesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Подтвердить доставку сообщений
+      tags:
+      - Messages
+  /messages/pending:
+    get:
+      description: |-
+        Возвращает до 100 ожидающих сообщений текущего пользователя. ciphertext — в base64.
+        После сохранения на клиенте их следует подтвердить через /messages/ack.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_message.PendingMessagesResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить недоставленные сообщения
+      tags:
+      - Messages
+  /messages/store:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Кладёт E2EE-зашифрованное сообщение в очередь получателя. Сервер не может его расшифровать.
+        ciphertext передаётся в base64. Используется, когда получатель недоступен по P2P.
+      parameters:
+      - description: Зашифрованное сообщение
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_message.StoreMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_message.StoreMessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Сохранить сообщение для оффлайн-доставки
+      tags:
+      - Messages
+  /users/{userId}:
+    get:
+      description: Возвращает профиль пользователя вместе с его публичным identity-ключом
+        (base64).
+      parameters:
+      - description: ID пользователя (UUID)
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_user.UserDTO'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить пользователя по ID
+      tags:
+      - Users
+  /users/search:
+    get:
+      description: Возвращает пользователя по точному username. Поле found=false,
+        если не найден.
+      parameters:
+      - description: username для поиска
+        in: query
+        name: q
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_user.SearchUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Поиск пользователя по username
+      tags:
+      - Users
+  /users/set-username:
+    post:
+      consumes:
+      - application/json
+      description: Задаёт уникальный username текущего пользователя (3–32 символа).
+        Обязателен после регистрации.
+      parameters:
+      - description: Желаемый username
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_auth.SetUsernameRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_auth.SetUsernameResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Установить username
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT access token. Формат: "Bearer <token>".'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -12,8 +12,11 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/Triddov/p2p-server/config"
+	_ "github.com/Triddov/p2p-server/docs"
 	"github.com/Triddov/p2p-server/internal/auth"
 	"github.com/Triddov/p2p-server/internal/database"
 	"github.com/Triddov/p2p-server/internal/keys"
@@ -21,6 +24,25 @@ import (
 	"github.com/Triddov/p2p-server/internal/user"
 	"github.com/Triddov/p2p-server/pkg/email"
 )
+
+// @title           P2P Messenger REST API
+// @version         1.0
+// @description     REST API peer-to-peer мессенджера: аутентификация по email-коду,
+// @description     управление профилем, обмен оффлайн-сообщениями (E2EE) и распространение
+// @description     Signal Protocol prekey-бандлов. Сервер не может расшифровать сообщения.
+// @description     WebRTC-сигналинг вынесен в отдельный сервис и здесь не документируется.
+
+// @contact.name    Triddov
+// @contact.url     https://github.com/Triddov
+
+// @license.name    See repository LICENCE
+
+// @BasePath        /api
+
+// @securityDefinitions.apikey BearerAuth
+// @in                         header
+// @name                       Authorization
+// @description                JWT access token. Формат: "Bearer <token>".
 
 func main() {
 	cfg, err := config.Load()
@@ -95,6 +117,12 @@ func main() {
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "healthy"})
 	})
+
+	// Swagger UI - только вне production (документация API не публикуется в проде)
+	if cfg.Environment != "production" {
+		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+		log.Println("Swagger UI enabled at /swagger/index.html")
+	}
 
 	// Public routes
 	api := router.Group("/api")

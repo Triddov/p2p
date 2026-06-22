@@ -27,6 +27,18 @@ type SearchUserResponse struct {
 	User  *UserDTO `json:"user,omitempty"`
 }
 
+// SearchUser godoc
+// @Summary      Поиск пользователя по username
+// @Description  Возвращает пользователя по точному username. Поле found=false, если не найден.
+// @Tags         Users
+// @Produce      json
+// @Security     BearerAuth
+// @Param        q    query     string  true  "username для поиска"
+// @Success      200  {object}  SearchUserResponse
+// @Failure      400  {object}  map[string]string
+// @Failure      401  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /users/search [get]
 func (h *Handler) SearchUser(c *gin.Context) {
 	username := c.Query("q")
 	if username == "" {
@@ -65,6 +77,17 @@ func (h *Handler) SearchUser(c *gin.Context) {
 	})
 }
 
+// GetUser godoc
+// @Summary      Получить пользователя по ID
+// @Description  Возвращает профиль пользователя вместе с его публичным identity-ключом (base64).
+// @Tags         Users
+// @Produce      json
+// @Security     BearerAuth
+// @Param        userId  path      string  true  "ID пользователя (UUID)"
+// @Success      200     {object}  UserDTO
+// @Failure      401     {object}  map[string]string
+// @Failure      404     {object}  map[string]string
+// @Router       /users/{userId} [get]
 func (h *Handler) GetUser(c *gin.Context) {
 	userID := c.Param("userId")
 
