@@ -17,9 +17,14 @@ jobs:
   #           go-version: '1.22'
   #       - run: go test ./...
 
-  deploy:
+  build:
     # needs: test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { name: p2p-api,       dockerfile: p2p-server/Dockerfile.api }
+          - { name: p2p-signaling, dockerfile: p2p-server/Dockerfile.signaling }
 
     steps:
       - uses: actions/checkout@v4
@@ -33,27 +38,23 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push p2p-api
+      - name: Build and Push ${{ matrix.name }}
         uses: docker/build-push-action@v5
         with:
           context: p2p-server/
-          file: p2p-server/Dockerfile.api
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
           push: true
-          tags: triddov/p2p-api:latest
-          cache-from: type=gha,scope=p2p-api
-          cache-to: type=gha,mode=max,scope=p2p-api
+          tags: triddov/${{ matrix.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
-      - name: Build & Push p2p-signaling
-        uses: docker/build-push-action@v5
-        with:
-          context: p2p-server/
-          file: p2p-server/Dockerfile.signaling
-          platforms: linux/amd64
-          push: true
-          tags: triddov/p2p-signaling:latest
-          cache-from: type=gha,scope=p2p-signaling
-          cache-to: type=gha,mode=max,scope=p2p-signaling
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Copy docker-compose and sql-init to server
         uses: appleboy/scp-action@v0.1.7
@@ -63,7 +64,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "p2p-server/docker-compose.yaml,p2p-server/sql/init/schema.sql"
+          source: "p2p-server/docker-compose.yaml,p2p-server/sql/init/schema.sql,p2p-server/start_prod.sh"
           target: "~/apps/p2p-backend"
           strip_components: 1
 
@@ -75,4 +76,4 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          script: $HOME/apps/p2p-backend/start_script.sh
+          script: cd $HOME/apps/p2p-backend && bash start_prod.sh
