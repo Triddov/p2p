@@ -115,7 +115,7 @@ services:
       --external-ip=${TURN_EXTERNAL_IP}
       --user=${TURN_USER}:${TURN_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "turnutils_uclient -u ${TURN_USER} -w ${TURN_PASSWORD} -y 127.0.0.1 >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "turnutils_stunclient -p 3478 127.0.0.1 >/dev/null 2>&1 || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
