@@ -55,7 +55,7 @@ jobs:
           cache-from: type=gha,scope=p2p-signaling
           cache-to: type=gha,mode=max,scope=p2p-signaling
 
-      - name: Copy docker-compose to server
+      - name: Copy docker-compose and sql-init to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -63,19 +63,9 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "p2p-server/docker-compose.yaml"
+          source: "p2p-server/docker-compose.yaml,p2p-server/sql/init/schema.sql"
           target: "~/apps/p2p-backend"
-
-      - name: Copy sql init
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: "p2p-server/sql/init/schema.sql"
-          target: "~/apps/p2p-backend/sql/init"    
+          strip_components: 1
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1

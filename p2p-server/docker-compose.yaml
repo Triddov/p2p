@@ -124,7 +124,9 @@ services:
 
 volumes:
   postgres_data:
+    name: p2p_postgres_data
   redis_data:
+    name: p2p_redis_data
 
 networks:
   p2p-backend-net:
