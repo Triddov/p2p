@@ -208,11 +208,5 @@ fun UsernameInput(onSetUsername: (String) -> Unit) {
         ) {
             Text("Continue")
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        TextButton(onClick = { onSetUsername("") }) {
-            Text("Skip for now")
-        }
     }
 }
