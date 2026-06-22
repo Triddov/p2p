@@ -75,7 +75,7 @@ class ChatRepository @Inject constructor(
             cryptoManager.buildSession(peerUserId, bundle)
         }
 
-        val messageId = "msg-${UUID.randomUUID()}"
+        val messageId = UUID.randomUUID().toString()
         val timestamp = System.currentTimeMillis()
 
         // шифрование через Signal Protocol (Double Ratchet)
