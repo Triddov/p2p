@@ -36,7 +36,7 @@ func (s *Service) StoreMessage(ctx context.Context, msg *StoreMessageRequest, se
 		msg.MessageID,
 		senderID,
 		msg.RecipientID,
-		msg.Ciphertext,
+		[]byte(msg.Ciphertext),
 		msg.MessageType,
 		msg.RatchetIndex,
 		initialMessageJSON,
@@ -69,16 +69,20 @@ func (s *Service) GetPendingMessages(ctx context.Context, recipientID string) ([
 	var messages []PendingMessageDTO
 	for rows.Next() {
 		var msg PendingMessageDTO
+		var ciphertext []byte
 		err := rows.Scan(
 			&msg.ID,
 			&msg.SenderID,
-			&msg.Ciphertext,
+			&ciphertext,
 			&msg.MessageType,
 			&msg.Timestamp,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan message: %w", err)
 		}
+
+		// ciphertext хранится в BYTEA как сырые байты; кодирование в base64
+		msg.Ciphertext = string(ciphertext)
 
 		messages = append(messages, msg)
 	}
