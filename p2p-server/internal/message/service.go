@@ -54,7 +54,7 @@ func (s *Service) StoreMessage(ctx context.Context, msg *StoreMessageRequest, se
 func (s *Service) GetPendingMessages(ctx context.Context, recipientID string) ([]PendingMessageDTO, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, sender_id, ciphertext, message_type,
-                EXTRACT(EPOCH FROM timestamp) * 1000 as timestamp
+                (EXTRACT(EPOCH FROM timestamp) * 1000)::bigint as timestamp
          FROM pending_messages
          WHERE recipient_id = $1 AND delivered = FALSE
          ORDER BY timestamp ASC

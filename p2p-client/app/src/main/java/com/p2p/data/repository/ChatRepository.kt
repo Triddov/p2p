@@ -9,6 +9,8 @@ import com.p2p.data.remote.dto.*
 import com.p2p.domain.crypto.CryptoManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.signal.libsignal.protocol.message.CiphertextMessage
 import java.util.UUID
@@ -26,6 +28,11 @@ class ChatRepository @Inject constructor(
     private val webRTCRepository: WebRTCRepository,
     private val gson: Gson
 ) {
+
+    // Сериализует выборку pending-сообщений: несколько триггеров (init, refresh,
+    // периодический опрос) не должны расшифровывать одну сессию параллельно —
+    // это повредило бы состояние Double Ratchet.
+    private val pendingFetchMutex = Mutex()
 
     fun getAllChats(): Flow<List<Chat>> = chatDao.getAllChats()
 
@@ -132,59 +139,87 @@ class ChatRepository @Inject constructor(
      * Получает pending-сообщения с сервера, расшифровывает и сохраняет локально.
      * После успешного сохранения подтверждает получение (ACK).
      */
-    suspend fun fetchPendingMessages(): Result<List<Message>> = withContext(Dispatchers.IO) { runCatching {
-        val response = apiService.getPendingMessages()
-        val messages = mutableListOf<Message>()
-        val ackIds = mutableListOf<String>()
+    suspend fun fetchPendingMessages(): Result<List<Message>> = withContext(Dispatchers.IO) {
+        pendingFetchMutex.withLock { runCatching {
+            val response = apiService.getPendingMessages()
+            val newMessages = mutableListOf<Message>()
+            val ackIds = mutableListOf<String>()
 
-        for (pendingMsg in response.messages) {
-            runCatching {
-                var chat = chatDao.getChatByPeer(pendingMsg.senderId)
-                if (chat == null) {
-                    val contact = contactDao.getContact(pendingMsg.senderId)
-                    chat = Chat(
-                        id = "chat-${UUID.randomUUID()}",
-                        peerUserId = pendingMsg.senderId,
-                        peerUsername = contact?.username,
-                        lastMessageText = null,
-                        lastMessageAt = null,
-                        unreadCount = 0
+            // Сервер отдаёт сообщения в порядке timestamp ASC — это обязательно
+            // для корректного продвижения Double Ratchet (по порядку на отправителя).
+            for (pendingMsg in response.messages) {
+                runCatching {
+                    // Идемпотентность по стабильному id: если сообщение уже обработано,
+                    // НЕ расшифровываем повторно (ratchet — одноразовый, второй раз
+                    // расшифровать нельзя). Просто переотправляем ACK — это делает
+                    // повторную доставку с сервера безопасной: без потерь и дублей.
+                    if (messageDao.getMessage(pendingMsg.id) != null) {
+                        ackIds.add(pendingMsg.id)
+                        return@runCatching
+                    }
+
+                    var chat = chatDao.getChatByPeer(pendingMsg.senderId)
+                    if (chat == null) {
+                        val contact = contactDao.getContact(pendingMsg.senderId)
+                        chat = Chat(
+                            id = "chat-${UUID.randomUUID()}",
+                            peerUserId = pendingMsg.senderId,
+                            peerUsername = contact?.username,
+                            lastMessageText = null,
+                            lastMessageAt = null,
+                            unreadCount = 0
+                        )
+                        chatDao.insertChat(chat)
+                    }
+
+                    val ciphertextBytes = Base64.decode(pendingMsg.ciphertext, Base64.NO_WRAP)
+                    val decrypted = cryptoManager.decrypt(
+                        pendingMsg.senderId,
+                        ciphertextBytes,
+                        pendingMsg.messageType
                     )
-                    chatDao.insertChat(chat)
+
+                    val message = Message(
+                        id = pendingMsg.id,
+                        chatId = chat.id,
+                        content = decrypted,
+                        timestamp = pendingMsg.timestamp,
+                        senderId = pendingMsg.senderId,
+                        status = MessageStatus.DELIVERED
+                    )
+                    // Сохраняем сразу после расшифровки; побочные эффекты для чата —
+                    // только для действительно нового сообщения (не для дубля).
+                    messageDao.insertMessage(message)
+                    chatDao.updateLastMessage(chat.id, decrypted, pendingMsg.timestamp)
+                    chatDao.incrementUnreadCount(chat.id)
+
+                    newMessages.add(message)
+                    ackIds.add(pendingMsg.id)
+                }.onFailure { e ->
+                    // НЕ подтверждаем: сообщение остаётся на сервере и будет доставлено
+                    // повторно позже — никогда не теряем доставляемое сообщение.
+                    android.util.Log.e(
+                        "ChatRepository",
+                        "Failed to process pending message ${pendingMsg.id}: ${e.message}"
+                    )
                 }
-
-                val ciphertextBytes = Base64.decode(pendingMsg.ciphertext, Base64.NO_WRAP)
-                val decrypted = cryptoManager.decrypt(
-                    pendingMsg.senderId,
-                    ciphertextBytes,
-                    pendingMsg.messageType
-                )
-
-                val message = Message(
-                    id = pendingMsg.id,
-                    chatId = chat.id,
-                    content = decrypted,
-                    timestamp = pendingMsg.timestamp,
-                    senderId = pendingMsg.senderId,
-                    status = MessageStatus.DELIVERED
-                )
-                messageDao.insertMessage(message)
-                chatDao.updateLastMessage(chat.id, decrypted, pendingMsg.timestamp)
-                chatDao.incrementUnreadCount(chat.id)
-
-                messages.add(message)
-                ackIds.add(pendingMsg.id)
-            }.onFailure { e ->
-                android.util.Log.e("ChatRepository", "Failed to process pending message: ${e.message}")
             }
-        }
 
-        if (ackIds.isNotEmpty()) {
-            apiService.ackMessages(AckMessagesRequest(ackIds))
-        }
+            if (ackIds.isNotEmpty()) {
+                // Сбой ACK не фатален: всё уже сохранено локально, а повторная
+                // доставка безопасно отсеётся проверкой getMessage(id) выше.
+                runCatching { apiService.ackMessages(AckMessagesRequest(ackIds)) }
+                    .onFailure {
+                        android.util.Log.e(
+                            "ChatRepository",
+                            "ACK failed, will retry on next fetch: ${it.message}"
+                        )
+                    }
+            }
 
-        messages
-    } }
+            newMessages
+        } }
+    }
 
     /**
      * Обрабатывает входящее P2P-сообщение из WebRTC DataChannel.

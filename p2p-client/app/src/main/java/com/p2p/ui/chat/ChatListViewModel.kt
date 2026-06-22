@@ -8,6 +8,7 @@ import com.p2p.data.repository.ChatRepository
 import com.p2p.data.repository.ContactRepository
 import com.p2p.data.repository.WebRTCRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,8 +31,22 @@ class ChatListViewModel @Inject constructor(
         // подключение к signaling серверу
         connectToSignaling()
 
-        // получение pending сообщения
+        // первичная загрузка pending-сообщений (с индикатором)
         fetchPendingMessages()
+
+        // периодический фоновый опрос, пока экран жив (без индикатора).
+        // Нужен для гарантированной доставки офлайн-сообщений, пока нет push (FCM):
+        // выборка идемпотентна, повторы безопасны (без потерь и дублей).
+        startPendingMessagesPolling()
+    }
+
+    private fun startPendingMessagesPolling() {
+        viewModelScope.launch {
+            while (true) {
+                delay(POLL_INTERVAL_MS)
+                chatRepository.fetchPendingMessages()
+            }
+        }
     }
 
     private fun connectToSignaling() {
@@ -83,6 +98,10 @@ class ChatListViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         webRTCRepository.disconnectSignaling()
+    }
+
+    companion object {
+        private const val POLL_INTERVAL_MS = 15_000L
     }
 }
 
