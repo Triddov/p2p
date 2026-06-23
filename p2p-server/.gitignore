@@ -4,5 +4,4 @@ dist/
 .*env*
 .DS_Store
 
-nginx/p2p.conf
 todo
