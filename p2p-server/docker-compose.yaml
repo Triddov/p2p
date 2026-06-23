@@ -1,7 +1,14 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: p2p-pg
+    logging: *default-logging
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -22,6 +29,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: p2p-redis
+    logging: *default-logging
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     command:
@@ -42,6 +50,7 @@ services:
   api:
     image: triddov/p2p-api:latest
     container_name: p2p-api
+    logging: *default-logging
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -78,6 +87,7 @@ services:
   signaling:
     image: triddov/p2p-signaling:latest
     container_name: p2p-signaling
+    logging: *default-logging
     ports:
       - "127.0.0.1:${SIGNALING_PORT}:${SIGNALING_PORT}"
     environment:
@@ -101,6 +111,7 @@ services:
   coturn:
     image: coturn/coturn:latest
     container_name: p2p-coturn
+    logging: *default-logging
     environment:
       TURN_REALM: ${TURN_REALM}
       TURN_USER: ${TURN_USER}
