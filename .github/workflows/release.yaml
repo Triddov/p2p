@@ -22,6 +22,10 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      # NDK нужен, чтобы AGP стрипал debug-символы из нативных .so при упаковке
+      - name: Install NDK
+        run: $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "ndk;26.1.10909125"
+
       - name: Build Release APK
         working-directory: p2p-client/
         run: ./gradlew assembleRelease

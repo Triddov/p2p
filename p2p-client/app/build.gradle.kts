@@ -10,6 +10,9 @@ android {
     namespace = "com.p2p_client"
     compileSdk = 34
 
+    // Версия NDK для стрипа нативных .so при сборке
+    ndkVersion = "26.1.10909125"
+
     defaultConfig {
         applicationId = "com.p2p_client"
         minSdk = 26
@@ -19,6 +22,21 @@ android {
 
         testInstrumentationRunner =
             "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // Тестовая нативная либа libsignal не нужна в релизе
+            excludes += "**/libsignal_jni_testing.so"
+        }
+        resources {
+            // Десктопные JVM-либы libsignal бесполезны на Android
+            excludes += listOf("**/*.dylib", "**/*.dll")
+        }
     }
 
     buildTypes {
