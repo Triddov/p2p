@@ -128,7 +128,23 @@ class ContactRepository @Inject constructor(
     suspend fun deleteContact(userId: String) {
         contactDao.deleteContact(userId)
     }
+
+    /** Presence собеседника с сервера (online + last seen). null при ошибке сети. */
+    suspend fun getPresence(userId: String): PeerPresence? {
+        return try {
+            val user = apiService.getUser(userId)
+            PeerPresence(online = user.online, lastSeen = user.lastSeen)
+        } catch (e: Exception) {
+            null
+        }
+    }
 }
+
+/** Presence собеседника: online и ISO-время последней активности. */
+data class PeerPresence(
+    val online: Boolean,
+    val lastSeen: String?
+)
 
 /**
  * Результат поиска пользователя (ещё не контакт). isContact = уже в списке контактов.

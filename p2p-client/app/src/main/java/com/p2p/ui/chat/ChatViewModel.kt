@@ -8,6 +8,7 @@ import com.p2p.data.local.entities.Message
 import com.p2p.data.repository.AuthRepository
 import com.p2p.data.repository.ChatRepository
 import com.p2p.data.repository.ContactRepository
+import com.p2p.data.repository.PeerPresence
 import com.p2p.data.repository.WebRTCRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -53,6 +54,10 @@ class ChatViewModel @Inject constructor(
     private val _keyChanged = MutableStateFlow(false)
     val keyChanged: StateFlow<Boolean> = _keyChanged.asStateFlow()
 
+    // Presence собеседника (снимок при открытии чата)
+    private val _peerPresence = MutableStateFlow<PeerPresence?>(null)
+    val peerPresence: StateFlow<PeerPresence?> = _peerPresence.asStateFlow()
+
     init {
         // пометка чата как прочитанного
         viewModelScope.launch {
@@ -77,10 +82,22 @@ class ChatViewModel @Inject constructor(
                 _keyChanged.value = true
             }
         }
+
+        // presence собеседника (снимок при открытии)
+        viewModelScope.launch {
+            _peerPresence.value = contactRepository.getPresence(peerUserId)
+        }
     }
 
     fun dismissKeyChangeWarning() {
         _keyChanged.value = false
+    }
+
+    /** Удаляет текущий чат вместе с сообщениями (контакт остаётся). */
+    fun deleteChat() {
+        viewModelScope.launch {
+            chatRepository.deleteChat(chatId)
+        }
     }
 
     fun sendMessage(content: String) {

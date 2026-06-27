@@ -160,7 +160,22 @@ class ChatRepository @Inject constructor(
 
                     var chat = chatDao.getChatByPeer(pendingMsg.senderId)
                     if (chat == null) {
-                        val contact = contactDao.getContact(pendingMsg.senderId)
+                        // Если отправитель ещё не контакт — добавляем его по TOFU
+                        // (username/ключ с сервера), чтобы в чате/списке был ник и
+                        // работал статус доверия. Иначе шапка показывала бы "Chat".
+                        var contact = contactDao.getContact(pendingMsg.senderId)
+                        if (contact == null) {
+                            contact = runCatching {
+                                val user = apiService.getUser(pendingMsg.senderId)
+                                VerifiedContact(
+                                    userId = user.id,
+                                    username = user.username,
+                                    identityPublicKey = cryptoManager.fromBase64(user.identityPublicKey),
+                                    verifiedAt = 0L,
+                                    verificationMethod = VerificationMethod.TOFU
+                                ).also { contactDao.insertContact(it) }
+                            }.getOrNull()
+                        }
                         chat = Chat(
                             id = "chat-${UUID.randomUUID()}",
                             peerUserId = pendingMsg.senderId,
@@ -224,46 +239,78 @@ class ChatRepository @Inject constructor(
     /**
      * Обрабатывает входящее P2P-сообщение из WebRTC DataChannel.
      */
-    suspend fun handleP2PMessage(peerUserId: String, messageJson: String): Result<Message> =
+    /**
+     * Обрабатывает входящее P2P-сообщение из WebRTC DataChannel.
+     * Маршрутизация по типу: сообщение / квитанция доставки / квитанция прочтения.
+     */
+    suspend fun handleP2PMessage(peerUserId: String, messageJson: String): Result<Unit> =
         withContext(Dispatchers.IO) { runCatching {
             val p2pMessage = gson.fromJson(messageJson, P2PMessage::class.java)
-
-            if (p2pMessage.type != "message") {
-                error("Unexpected P2P message type: ${p2pMessage.type}")
+            when (p2pMessage.type) {
+                "message" -> handleIncomingMessage(peerUserId, p2pMessage)
+                "delivery_receipt" ->
+                    messageDao.updateMessageStatus(p2pMessage.messageId, MessageStatus.DELIVERED)
+                "read_receipt" ->
+                    chatDao.getChatByPeer(peerUserId)?.let { messageDao.markOutgoingMessagesRead(it.id) }
+                else -> error("Unexpected P2P message type: ${p2pMessage.type}")
             }
-
-            val chat = chatDao.getChatByPeer(peerUserId)
-                ?: error("Chat not found for peer $peerUserId")
-
-            val ciphertextBytes = Base64.decode(p2pMessage.ciphertext, Base64.NO_WRAP)
-            val decrypted = cryptoManager.decrypt(
-                peerUserId,
-                ciphertextBytes,
-                p2pMessage.messageType
-            )
-
-            val message = Message(
-                id = p2pMessage.messageId,
-                chatId = chat.id,
-                content = decrypted,
-                timestamp = p2pMessage.timestamp,
-                senderId = peerUserId,
-                status = MessageStatus.DELIVERED
-            )
-            messageDao.insertMessage(message)
-            chatDao.updateLastMessage(chat.id, decrypted, p2pMessage.timestamp)
-            chatDao.incrementUnreadCount(chat.id)
-
-            sendDeliveryReceipt(peerUserId, p2pMessage.messageId)
-            message
         } }
 
-    suspend fun handleDeliveryReceipt(messageId: String) {
-        messageDao.updateMessageStatus(messageId, MessageStatus.DELIVERED)
+    private suspend fun handleIncomingMessage(peerUserId: String, p2pMessage: P2PMessage) {
+        val chat = chatDao.getChatByPeer(peerUserId)
+            ?: error("Chat not found for peer $peerUserId")
+
+        // Идемпотентность: если сообщение уже есть (ретрансмит) — не расшифровываем
+        // повторно (ratchet одноразовый), только переотправляем квитанцию доставки.
+        if (messageDao.getMessage(p2pMessage.messageId) != null) {
+            sendDeliveryReceipt(peerUserId, p2pMessage.messageId)
+            return
+        }
+
+        val ciphertextBytes = Base64.decode(p2pMessage.ciphertext, Base64.NO_WRAP)
+        val decrypted = cryptoManager.decrypt(peerUserId, ciphertextBytes, p2pMessage.messageType)
+
+        val message = Message(
+            id = p2pMessage.messageId,
+            chatId = chat.id,
+            content = decrypted,
+            timestamp = p2pMessage.timestamp,
+            senderId = peerUserId,
+            status = MessageStatus.DELIVERED
+        )
+        messageDao.insertMessage(message)
+        chatDao.updateLastMessage(chat.id, decrypted, p2pMessage.timestamp)
+        chatDao.incrementUnreadCount(chat.id)
+
+        sendDeliveryReceipt(peerUserId, p2pMessage.messageId)
+    }
+
+    /** Удаляет чат вместе со всеми его сообщениями (контакт остаётся). */
+    suspend fun deleteChat(chatId: String) {
+        messageDao.deleteMessagesForChat(chatId)
+        chatDao.deleteChat(chatId)
+    }
+
+    /** Удаляет чат с указанным собеседником, если он есть. */
+    suspend fun deleteChatByPeer(peerUserId: String) {
+        chatDao.getChatByPeer(peerUserId)?.let { deleteChat(it.id) }
     }
 
     suspend fun markChatAsRead(chatId: String) {
         chatDao.clearUnreadCount(chatId)
+        // Сообщаем собеседнику, что переписка прочитана (best-effort по P2P).
+        chatDao.getChat(chatId)?.let { sendReadReceipt(it.peerUserId) }
+    }
+
+    private fun sendReadReceipt(peerUserId: String) {
+        val receipt = P2PMessage(
+            type = "read_receipt",
+            messageId = "",
+            timestamp = System.currentTimeMillis(),
+            ciphertext = "",
+            messageType = CiphertextMessage.WHISPER_TYPE
+        )
+        webRTCRepository.sendMessage(peerUserId, gson.toJson(receipt))
     }
 
     private fun sendDeliveryReceipt(peerUserId: String, messageId: String) {

@@ -21,6 +21,7 @@ type UserDTO struct {
 	Username          *string `json:"username"`
 	IdentityPublicKey string  `json:"identity_public_key"`
 	LastSeen          *string `json:"last_seen"`
+	Online            bool    `json:"online"`
 }
 
 type SearchUsersResponse struct {
@@ -102,6 +103,7 @@ func (h *Handler) GetUser(c *gin.Context) {
 	dto := UserDTO{
 		ID:                user.ID,
 		IdentityPublicKey: base64.StdEncoding.EncodeToString(user.IdentityPublicKey),
+		Online:            user.Online,
 	}
 
 	if user.Username.Valid {

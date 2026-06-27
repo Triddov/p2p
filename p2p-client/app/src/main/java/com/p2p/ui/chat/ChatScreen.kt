@@ -31,9 +31,12 @@ fun ChatScreen(
     val isP2PConnected by viewModel.isP2PConnected.collectAsState()
     val isPeerVerified by viewModel.isPeerVerified.collectAsState()
     val keyChanged by viewModel.keyChanged.collectAsState()
+    val peerPresence by viewModel.peerPresence.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
 
     var messageText by remember { mutableStateOf(TextFieldValue("")) }
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     // Auto-scroll to bottom on new message
@@ -70,8 +73,16 @@ fun ChatScreen(
                                     MaterialTheme.colorScheme.tertiary
                             )
                         }
+                        val presenceLabel = when {
+                            peerPresence?.online == true -> "online"
+                            peerPresence?.lastSeen != null -> formatLastSeen(peerPresence!!.lastSeen!!)
+                            else -> null
+                        }
                         Text(
-                            text = if (isP2PConnected) "P2P Connected" else "Via Server",
+                            text = if (presenceLabel != null)
+                                "$presenceLabel · ${if (isP2PConnected) "P2P" else "via server"}"
+                            else
+                                if (isP2PConnected) "P2P Connected" else "Via Server",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (isP2PConnected)
                                 MaterialTheme.colorScheme.primary
@@ -83,6 +94,25 @@ fun ChatScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, "Menu")
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Delete chat") },
+                                onClick = {
+                                    menuExpanded = false
+                                    showDeleteDialog = true
+                                }
+                            )
+                        }
                     }
                 }
             )
@@ -184,6 +214,39 @@ fun ChatScreen(
             }
         }
     }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete chat") },
+            text = { Text("Delete this conversation? Messages will be removed from this device.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    viewModel.deleteChat()
+                    onBack()
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+private fun formatLastSeen(iso: String): String {
+    return try {
+        val instant = java.time.Instant.parse(iso)
+        val mins = java.time.Duration.between(instant, java.time.Instant.now()).toMinutes()
+        when {
+            mins < 1L -> "last seen just now"
+            mins < 60L -> "last seen ${mins}m ago"
+            mins < 1440L -> "last seen ${mins / 60}h ago"
+            else -> "last seen ${mins / 1440}d ago"
+        }
+    } catch (e: Exception) {
+        "last seen recently"
+    }
 }
 
 @Composable
@@ -242,10 +305,11 @@ fun MessageBubble(message: Message) {
                             },
                             contentDescription = message.status.name,
                             modifier = Modifier.size(16.dp),
-                            tint = if (isMe)
-                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                            // Прочитано — выделяем акцентом; остальные статусы приглушены.
+                            tint = if (message.status == MessageStatus.READ)
+                                MaterialTheme.colorScheme.tertiary
                             else
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
                         )
                     }
                 }

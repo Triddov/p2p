@@ -12,5 +12,6 @@ data class UserDto(
     @SerializedName("identity_public_key")
     val identityPublicKey: String,
     @SerializedName("last_seen")
-    val lastSeen: String?
+    val lastSeen: String?,
+    val online: Boolean = false
 )

@@ -59,6 +59,9 @@ interface ChatDao {
 
     @Query("UPDATE chats SET unreadCount = 0 WHERE id = :chatId")
     suspend fun clearUnreadCount(chatId: String)
+
+    @Query("DELETE FROM chats WHERE id = :chatId")
+    suspend fun deleteChat(chatId: String)
 }
 
 @Dao
@@ -74,6 +77,11 @@ interface MessageDao {
 
     @Query("UPDATE messages SET status = :status WHERE id = :messageId")
     suspend fun updateMessageStatus(messageId: String, status: MessageStatus)
+
+    // Все отправленные нами сообщения в чате помечаем прочитанными (по read-квитанции).
+    // Значения статусов хранятся как имена enum (см. Converters).
+    @Query("UPDATE messages SET status = 'READ' WHERE chatId = :chatId AND senderId = 'me' AND status IN ('SENT', 'DELIVERED')")
+    suspend fun markOutgoingMessagesRead(chatId: String)
 
     @Query("DELETE FROM messages WHERE chatId = :chatId")
     suspend fun deleteMessagesForChat(chatId: String)

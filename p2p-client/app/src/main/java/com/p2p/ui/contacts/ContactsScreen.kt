@@ -1,6 +1,8 @@
 package com.p2p.ui.contacts
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,6 +29,8 @@ fun ContactsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchState by viewModel.searchState.collectAsState()
+
+    var contactToDelete by remember { mutableStateOf<VerifiedContact?>(null) }
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
@@ -76,19 +80,42 @@ fun ContactsScreen(
 
             // Пока запрос пустой/короткий — показываем контакты, иначе — результаты поиска.
             if (searchQuery.isBlank()) {
-                ContactsList(contacts = contacts, onOpenChat = { viewModel.startChatWith(it) }, viewModel = viewModel)
+                ContactsList(
+                    contacts = contacts,
+                    viewModel = viewModel,
+                    onLongClick = { contactToDelete = it }
+                )
             } else {
                 SearchResults(state = searchState, onPick = { viewModel.startChatWith(it) })
             }
         }
+    }
+
+    contactToDelete?.let { contact ->
+        AlertDialog(
+            onDismissRequest = { contactToDelete = null },
+            title = { Text("Delete contact") },
+            text = {
+                Text("Delete ${contact.username ?: "this contact"} and your conversation with them?")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteContact(contact.userId)
+                    contactToDelete = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { contactToDelete = null }) { Text("Cancel") }
+            }
+        )
     }
 }
 
 @Composable
 private fun ContactsList(
     contacts: List<VerifiedContact>,
-    onOpenChat: (UserSearchResult) -> Unit,
-    viewModel: ContactsViewModel
+    viewModel: ContactsViewModel,
+    onLongClick: (VerifiedContact) -> Unit
 ) {
     if (contacts.isEmpty()) {
         CenteredHint(
@@ -98,10 +125,11 @@ private fun ContactsList(
         return
     }
     LazyColumn {
-        items(contacts) { contact ->
+        items(contacts, key = { it.userId }) { contact ->
             ContactListItem(
                 contact = contact,
-                onClick = { viewModel.openChat(contact.userId) }
+                onClick = { viewModel.openChat(contact.userId) },
+                onLongClick = { onLongClick(contact) }
             )
             Divider()
         }
@@ -173,10 +201,12 @@ private fun CenteredHint(title: String, subtitle: String?) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ContactListItem(
     contact: VerifiedContact,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     val verified = contact.verificationMethod.isVerified
 
@@ -205,6 +235,6 @@ fun ContactListItem(
                 )
             }
         },
-        modifier = Modifier.clickable(onClick = onClick)
+        modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
     )
 }

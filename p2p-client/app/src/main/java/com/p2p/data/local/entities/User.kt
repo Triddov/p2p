@@ -34,14 +34,28 @@ data class VerifiedContact(
     val verificationMethod: VerificationMethod,
     val lastSeen: Long? = null
 ) {
+    // Полное value-равенство: важно для Compose — иначе при смене verificationMethod
+    // (тот же userId) UI считал бы контакт неизменившимся и не обновлял статус.
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-        other as VerifiedContact
-        return userId == other.userId
+        if (other !is VerifiedContact) return false
+        return userId == other.userId &&
+            username == other.username &&
+            identityPublicKey.contentEquals(other.identityPublicKey) &&
+            verifiedAt == other.verifiedAt &&
+            verificationMethod == other.verificationMethod &&
+            lastSeen == other.lastSeen
     }
 
-    override fun hashCode(): Int = userId.hashCode()
+    override fun hashCode(): Int {
+        var result = userId.hashCode()
+        result = 31 * result + (username?.hashCode() ?: 0)
+        result = 31 * result + identityPublicKey.contentHashCode()
+        result = 31 * result + verifiedAt.hashCode()
+        result = 31 * result + verificationMethod.hashCode()
+        result = 31 * result + (lastSeen?.hashCode() ?: 0)
+        return result
+    }
 }
 
 @Entity(tableName = "chats")

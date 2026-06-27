@@ -151,8 +151,10 @@ class ContactsViewModel @Inject constructor(
         }
     }
 
+    /** Удаляет контакт и вместе с ним переписку (чат + сообщения). */
     fun deleteContact(userId: String) {
         viewModelScope.launch {
+            chatRepository.deleteChatByPeer(userId)
             contactRepository.deleteContact(userId)
         }
     }

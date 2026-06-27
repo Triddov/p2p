@@ -55,11 +55,11 @@ func (s *Service) SearchUsers(ctx context.Context, prefix, excludeUserID string)
 func (s *Service) GetUser(ctx context.Context, userID string) (*models.User, error) {
 	var user models.User
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, username, identity_public_key, last_seen
+		`SELECT id, username, identity_public_key, last_seen, online
          FROM users
          WHERE id = $1`,
 		userID,
-	).Scan(&user.ID, &user.Username, &user.IdentityPublicKey, &user.LastSeen)
+	).Scan(&user.ID, &user.Username, &user.IdentityPublicKey, &user.LastSeen, &user.Online)
 
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
