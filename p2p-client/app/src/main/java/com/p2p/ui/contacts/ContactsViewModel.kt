@@ -43,9 +43,9 @@ class ContactsViewModel @Inject constructor(
         .distinctUntilChanged()
         .flatMapLatest { query ->
             if (query.length < MIN_QUERY_LEN) {
-                flowOf(SearchUiState.Idle)
+                flowOf<SearchUiState>(SearchUiState.Idle)
             } else {
-                flow {
+                flow<SearchUiState> {
                     emit(SearchUiState.Loading)
                     val result = contactRepository.searchUsers(query)
                     emit(
