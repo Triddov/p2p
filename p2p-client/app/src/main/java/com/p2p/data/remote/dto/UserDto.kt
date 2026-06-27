@@ -6,6 +6,10 @@ data class SearchUsersResponse(
     val users: List<UserDto>
 )
 
+data class SetDiscoverableRequest(
+    val discoverable: Boolean
+)
+
 data class UserDto(
     val id: String,
     val username: String?,

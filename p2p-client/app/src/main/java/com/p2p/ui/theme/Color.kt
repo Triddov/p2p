@@ -47,3 +47,44 @@ val OutlineVariant = Color(0xFF2A2A3E)
 val InverseSurface = Color(0xFFE6E1F0)
 val InverseOnSurface = Color(0xFF1B1B2F)
 val Scrim = Color(0xFF000000)
+
+val LightPrimary = BrandBlue
+val LightOnPrimary = Color(0xFFFFFFFF)
+val LightPrimaryContainer = Color(0xFFE4DFFF)
+val LightOnPrimaryContainer = Color(0xFF160964)
+val LightInversePrimary = Color(0xFFC9BFFF)
+
+val LightSecondary = Color(0xFF5B5790)
+val LightOnSecondary = Color(0xFFFFFFFF)
+val LightSecondaryContainer = Color(0xFFE4DFFF)
+val LightOnSecondaryContainer = Color(0xFF171347)
+
+val LightTertiary = BrandOrange
+val LightOnTertiary = Color(0xFF3A1E00)
+val LightTertiaryContainer = Color(0xFFFFDCBE)
+val LightOnTertiaryContainer = Color(0xFF2B1700)
+
+val LightError = Color(0xFFBA1A1A)
+val LightOnError = Color(0xFFFFFFFF)
+val LightErrorContainer = Color(0xFFFFDAD6)
+val LightOnErrorContainer = Color(0xFF410002)
+
+val LightBackground = Color(0xFFFDFBFF)
+val LightOnBackground = Color(0xFF1B1B2F)
+val LightSurface = Color(0xFFFDFBFF)
+val LightOnSurface = Color(0xFF1B1B2F)
+val LightSurfaceVariant = Color(0xFFE4E1EC)
+val LightOnSurfaceVariant = Color(0xFF47465A)
+
+val LightSurfaceDim = Color(0xFFDAD9E5)
+val LightSurfaceBright = Color(0xFFFDFBFF)
+val LightSurfaceContainerLowest = Color(0xFFFFFFFF)
+val LightSurfaceContainerLow = Color(0xFFF4F2FB)
+val LightSurfaceContainer = Color(0xFFEFEDF7)
+val LightSurfaceContainerHigh = Color(0xFFE9E7F1)
+val LightSurfaceContainerHighest = Color(0xFFE3E1EC)
+
+val LightOutline = Color(0xFF787680)
+val LightOutlineVariant = Color(0xFFC8C5D5)
+val LightInverseSurface = Color(0xFF303040)
+val LightInverseOnSurface = Color(0xFFF2EFFB)

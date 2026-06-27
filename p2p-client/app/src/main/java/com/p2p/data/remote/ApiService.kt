@@ -18,6 +18,9 @@ interface ApiService {
     @POST("api/users/set-username")
     suspend fun setUsername(@Body request: SetUsernameRequest): SetUsernameResponse
 
+    @PUT("api/users/discoverable")
+    suspend fun setDiscoverable(@Body request: SetDiscoverableRequest)
+
     @GET("api/users/search")
     suspend fun searchUsers(@Query("q") query: String): SearchUsersResponse
 

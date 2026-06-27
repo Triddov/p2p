@@ -1,0 +1,44 @@
+package com.p2p.data.local
+
+import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+private val Context.settingsDataStore by preferencesDataStore(name = "settings")
+
+/**
+ * Локальные настройки приложения (DataStore): тема и видимость в поиске.
+ * discoverable хранится локально как зеркало; на сервер пушится отдельно.
+ */
+@Singleton
+class SettingsRepository @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    private val themeKey = stringPreferencesKey("theme_mode")
+    private val discoverableKey = booleanPreferencesKey("discoverable")
+
+    val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
+        prefs[themeKey]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM
+    }
+
+    val discoverable: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[discoverableKey] ?: true
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.settingsDataStore.edit { it[themeKey] = mode.name }
+    }
+
+    suspend fun setDiscoverable(value: Boolean) {
+        context.settingsDataStore.edit { it[discoverableKey] = value }
+    }
+}

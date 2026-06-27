@@ -80,6 +80,40 @@ func (h *Handler) SearchUser(c *gin.Context) {
 	c.JSON(http.StatusOK, SearchUsersResponse{Users: dtos})
 }
 
+type SetDiscoverableRequest struct {
+	Discoverable bool `json:"discoverable"`
+}
+
+// SetDiscoverable godoc
+// @Summary      Видимость в поиске
+// @Description  Включает/выключает отображение текущего пользователя в поиске по username.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      SetDiscoverableRequest  true  "Флаг видимости"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /users/discoverable [put]
+func (h *Handler) SetDiscoverable(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	var req SetDiscoverableRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.SetDiscoverable(c.Request.Context(), userID, req.Discoverable); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 // GetUser godoc
 // @Summary      Получить пользователя по ID
 // @Description  Возвращает профиль пользователя вместе с его публичным identity-ключом (base64).

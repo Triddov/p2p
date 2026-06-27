@@ -139,6 +139,7 @@ func main() {
 	{
 		// User
 		protected.POST("/users/set-username", authHandler.SetUsername)
+		protected.PUT("/users/discoverable", userHandler.SetDiscoverable)
 		protected.GET("/users/search", userHandler.SearchUser)
 		protected.GET("/users/:userId", userHandler.GetUser)
 

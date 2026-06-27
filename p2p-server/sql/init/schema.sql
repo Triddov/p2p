@@ -29,6 +29,8 @@ CREATE TABLE users (
     last_seen TIMESTAMPTZ,
     online BOOLEAN DEFAULT FALSE,
 
+    discoverable BOOLEAN NOT NULL DEFAULT TRUE,
+
     -- Device ?
     device_id VARCHAR(64),
 

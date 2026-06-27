@@ -29,6 +29,7 @@ func (s *Service) SearchUsers(ctx context.Context, prefix, excludeUserID string)
 		`SELECT id, username, identity_public_key, last_seen
          FROM users
          WHERE username IS NOT NULL
+           AND discoverable = TRUE
            AND lower(username) LIKE lower($1) ESCAPE '\'
            AND id <> $2
          ORDER BY username ASC
@@ -49,6 +50,18 @@ func (s *Service) SearchUsers(ctx context.Context, prefix, excludeUserID string)
 		users = append(users, u)
 	}
 	return users, rows.Err()
+}
+
+// SetDiscoverable обновляет видимость пользователя в поиске
+func (s *Service) SetDiscoverable(ctx context.Context, userID string, discoverable bool) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE users SET discoverable = $1 WHERE id = $2`,
+		discoverable, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update discoverable: %w", err)
+	}
+	return nil
 }
 
 // GetUser получает пользователя по ID
