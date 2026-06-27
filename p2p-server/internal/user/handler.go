@@ -3,6 +3,7 @@ package user
 import (
 	"encoding/base64"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,59 +23,60 @@ type UserDTO struct {
 	LastSeen          *string `json:"last_seen"`
 }
 
-type SearchUserResponse struct {
-	Found bool     `json:"found"`
-	User  *UserDTO `json:"user,omitempty"`
+type SearchUsersResponse struct {
+	Users []UserDTO `json:"users"`
 }
 
+const minSearchQueryLen = 3
+
 // SearchUser godoc
-// @Summary      Поиск пользователя по username
-// @Description  Возвращает пользователя по точному username. Поле found=false, если не найден.
+// @Summary      Поиск пользователей по префиксу username
+// @Description  Возвращает до 20 пользователей, чей username начинается с q (регистронезависимо).
+// @Description  Минимальная длина q — 3 символа; иначе возвращается пустой список. Себя не включает.
 // @Tags         Users
 // @Produce      json
 // @Security     BearerAuth
-// @Param        q    query     string  true  "username для поиска"
-// @Success      200  {object}  SearchUserResponse
-// @Failure      400  {object}  map[string]string
+// @Param        q    query     string  true  "префикс username (мин. 3 символа)"
+// @Success      200  {object}  SearchUsersResponse
 // @Failure      401  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
 // @Router       /users/search [get]
 func (h *Handler) SearchUser(c *gin.Context) {
-	username := c.Query("q")
-	if username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "username query required"})
+	query := strings.TrimSpace(c.Query("q"))
+
+	// Слишком короткий запрос — не выполняем поиск (защита от перебора каталога).
+	if len([]rune(query)) < minSearchQueryLen {
+		c.JSON(http.StatusOK, SearchUsersResponse{Users: []UserDTO{}})
 		return
 	}
 
-	user, err := h.service.SearchUser(c.Request.Context(), username)
+	requesterID := c.GetString("user_id")
+
+	users, err := h.service.SearchUsers(c.Request.Context(), query, requesterID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	if user == nil {
-		c.JSON(http.StatusOK, SearchUserResponse{Found: false})
-		return
+	dtos := make([]UserDTO, 0, len(users))
+	for i := range users {
+		u := users[i]
+		dto := UserDTO{
+			ID:                u.ID,
+			IdentityPublicKey: base64.StdEncoding.EncodeToString(u.IdentityPublicKey),
+		}
+		if u.Username.Valid {
+			name := u.Username.String
+			dto.Username = &name
+		}
+		if u.LastSeen.Valid {
+			lastSeen := u.LastSeen.Time.Format("2006-01-02T15:04:05Z")
+			dto.LastSeen = &lastSeen
+		}
+		dtos = append(dtos, dto)
 	}
 
-	dto := &UserDTO{
-		ID:                user.ID,
-		IdentityPublicKey: base64.StdEncoding.EncodeToString(user.IdentityPublicKey),
-	}
-
-	if user.Username.Valid {
-		dto.Username = &user.Username.String
-	}
-
-	if user.LastSeen.Valid {
-		lastSeen := user.LastSeen.Time.Format("2006-01-02T15:04:05Z")
-		dto.LastSeen = &lastSeen
-	}
-
-	c.JSON(http.StatusOK, SearchUserResponse{
-		Found: true,
-		User:  dto,
-	})
+	c.JSON(http.StatusOK, SearchUsersResponse{Users: dtos})
 }
 
 // GetUser godoc

@@ -10,10 +10,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.p2p.data.local.entities.VerifiedContact
+import com.p2p.data.repository.UserSearchResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,9 +25,8 @@ fun ContactsScreen(
 ) {
     val contacts by viewModel.contacts.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
-
-    var searchQuery by remember { mutableStateOf(TextFieldValue("")) }
-    var showSearchDialog by remember { mutableStateOf(false) }
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val searchState by viewModel.searchState.collectAsState()
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
@@ -41,16 +40,7 @@ fun ContactsScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Contacts") },
-                actions = {
-                    IconButton(onClick = { showSearchDialog = true }) {
-                        Icon(Icons.Default.Search, "Search user")
-                    }
-                }
-            )
-        },
+        topBar = { TopAppBar(title = { Text("Contacts") }) },
         floatingActionButton = {
             Column {
                 FloatingActionButton(
@@ -59,117 +49,127 @@ fun ContactsScreen(
                 ) {
                     Icon(Icons.Default.QrCodeScanner, "Scan QR")
                 }
-
                 FloatingActionButton(onClick = onShowMyQR) {
                     Icon(Icons.Default.QrCode, "My QR")
                 }
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
-            when {
-                contacts.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "No contacts yet",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Scan a QR code to add contact",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = viewModel::onSearchQueryChange,
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear")
                         }
                     }
-                }
+                },
+                placeholder = { Text("Search by username") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
 
-                else -> {
-                    LazyColumn {
-                        items(contacts) { contact ->
-                            ContactListItem(
-                                contact = contact,
-                                onClick = { viewModel.openChat(contact.userId) }
-                            )
-                            Divider()
-                        }
-                    }
-                }
+            // Пока запрос пустой/короткий — показываем контакты, иначе — результаты поиска.
+            if (searchQuery.isBlank()) {
+                ContactsList(contacts = contacts, onOpenChat = { viewModel.startChatWith(it) }, viewModel = viewModel)
+            } else {
+                SearchResults(state = searchState, onPick = { viewModel.startChatWith(it) })
             }
         }
     }
+}
 
-    // Search dialog
-    if (showSearchDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showSearchDialog = false
-                viewModel.resetState()
-            },
-            title = { Text("Search User") },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        label = { Text("Username") },
-                        placeholder = { Text("alice_crypto") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    when (val state = uiState) {
-                        is ContactsUiState.Loading -> {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                        }
-
-                        is ContactsUiState.UserFound -> {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text("User found: ${state.contact.username}")
-                            Text(
-                                text = "Note: Exchange QR codes to verify identity",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-
-                        is ContactsUiState.Error -> {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = state.message,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-
-                        else -> {}
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (searchQuery.text.isNotBlank()) {
-                            viewModel.searchUser(searchQuery.text)
-                        }
-                    },
-                    enabled = searchQuery.text.isNotBlank()
-                ) {
-                    Text("Search")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showSearchDialog = false
-                    viewModel.resetState()
-                }) {
-                    Text("Cancel")
-                }
-            }
+@Composable
+private fun ContactsList(
+    contacts: List<VerifiedContact>,
+    onOpenChat: (UserSearchResult) -> Unit,
+    viewModel: ContactsViewModel
+) {
+    if (contacts.isEmpty()) {
+        CenteredHint(
+            title = "No contacts yet",
+            subtitle = "Find someone by username or scan a QR code"
         )
+        return
+    }
+    LazyColumn {
+        items(contacts) { contact ->
+            ContactListItem(
+                contact = contact,
+                onClick = { viewModel.openChat(contact.userId) }
+            )
+            Divider()
+        }
+    }
+}
+
+@Composable
+private fun SearchResults(
+    state: SearchUiState,
+    onPick: (UserSearchResult) -> Unit
+) {
+    when (state) {
+        is SearchUiState.Loading -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        is SearchUiState.Empty -> CenteredHint(title = "No users found", subtitle = null)
+        is SearchUiState.Error -> CenteredHint(title = state.message, subtitle = null)
+        is SearchUiState.Results -> LazyColumn {
+            items(state.users) { user ->
+                SearchResultItem(user = user, onClick = { onPick(user) })
+                Divider()
+            }
+        }
+        is SearchUiState.Idle -> {} // запрос ещё короткий
+    }
+}
+
+@Composable
+private fun SearchResultItem(user: UserSearchResult, onClick: () -> Unit) {
+    ListItem(
+        headlineContent = {
+            Text(user.username ?: "Unknown", style = MaterialTheme.typography.titleMedium)
+        },
+        supportingContent = {
+            Text(
+                text = if (user.isContact) "Already in contacts" else "Tap to start chat",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        trailingContent = {
+            Icon(
+                imageVector = if (user.isContact) Icons.Default.Check else Icons.Default.PersonAdd,
+                contentDescription = null,
+                tint = if (user.isContact)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        modifier = Modifier.clickable(onClick = onClick)
+    )
+}
+
+@Composable
+private fun CenteredHint(title: String, subtitle: String?) {
+    Box(Modifier.fillMaxSize(), Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            if (subtitle != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -178,6 +178,8 @@ fun ContactListItem(
     contact: VerifiedContact,
     onClick: () -> Unit
 ) {
+    val verified = contact.verificationMethod.isVerified
+
     ListItem(
         headlineContent = {
             Text(
@@ -187,20 +189,18 @@ fun ContactListItem(
         },
         supportingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (contact.verificationMethod == "qr_scan") {
-                    Icon(
-                        Icons.Default.Verified,
-                        contentDescription = "Verified",
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-                Text(
-                    text = if (contact.verificationMethod == "qr_scan")
-                        "Verified via QR"
+                Icon(
+                    imageVector = if (verified) Icons.Default.Verified else Icons.Default.GppMaybe,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = if (verified)
+                        MaterialTheme.colorScheme.primary
                     else
-                        "Not verified",
+                        MaterialTheme.colorScheme.tertiary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (verified) "Verified" else "Not verified",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

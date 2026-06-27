@@ -3,12 +3,16 @@ package com.p2p.ui.contacts
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
+import com.p2p.data.local.entities.VerificationMethod
 import com.p2p.data.local.entities.VerifiedContact
 import com.p2p.data.repository.ChatRepository
 import com.p2p.data.repository.ContactRepository
+import com.p2p.data.repository.UserSearchResult
 import com.p2p.domain.crypto.CryptoManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -28,21 +32,57 @@ class ContactsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ContactsUiState>(ContactsUiState.Idle)
     val uiState: StateFlow<ContactsUiState> = _uiState.asStateFlow()
 
-    fun searchUser(username: String) {
+    // Живой поиск: ввод -> debounce -> запрос с отменой предыдущего.
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+    val searchState: StateFlow<SearchUiState> = _searchQuery
+        .debounce(300)
+        .map { it.trim() }
+        .distinctUntilChanged()
+        .flatMapLatest { query ->
+            if (query.length < MIN_QUERY_LEN) {
+                flowOf(SearchUiState.Idle)
+            } else {
+                flow {
+                    emit(SearchUiState.Loading)
+                    val result = contactRepository.searchUsers(query)
+                    emit(
+                        result.fold(
+                            onSuccess = { list ->
+                                if (list.isEmpty()) SearchUiState.Empty
+                                else SearchUiState.Results(list)
+                            },
+                            onFailure = { SearchUiState.Error(it.message ?: "Search failed") }
+                        )
+                    )
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SearchUiState.Idle)
+
+    fun onSearchQueryChange(query: String) {
+        _searchQuery.value = query
+    }
+
+    /**
+     * Открывает чат с найденным пользователем: если он ещё не контакт —
+     * добавляет его по TOFU, затем создаёт/находит чат.
+     */
+    fun startChatWith(result: UserSearchResult) {
         viewModelScope.launch {
             _uiState.value = ContactsUiState.Loading
-
-            contactRepository.searchUser(username)
-                .onSuccess { contact ->
-                    if (contact != null) {
-                        _uiState.value = ContactsUiState.UserFound(contact)
-                    } else {
-                        _uiState.value = ContactsUiState.Error("User not found")
-                    }
+            try {
+                if (contactRepository.getContact(result.userId) == null) {
+                    contactRepository.addContactTofu(result)
                 }
-                .onFailure { error ->
-                    _uiState.value = ContactsUiState.Error(error.message ?: "Search failed")
-                }
+                val chat = chatRepository.getChatByPeer(result.userId)
+                    ?: chatRepository.createChat(result.userId)
+                _uiState.value = ContactsUiState.ChatCreated(chat.id, result.userId)
+            } catch (e: Exception) {
+                _uiState.value = ContactsUiState.Error(e.message ?: "Failed to open chat")
+            }
         }
     }
 
@@ -81,7 +121,7 @@ class ContactsViewModel @Inject constructor(
                                 userId = qrData.userId,
                                 username = qrData.username,
                                 publicKey = scannedKey,
-                                verificationMethod = "qr_scan"
+                                verificationMethod = VerificationMethod.QR_SCAN
                             )
 
                             _uiState.value = ContactsUiState.ContactVerified(qrData.username ?: qrData.userId)
@@ -97,19 +137,6 @@ class ContactsViewModel @Inject constructor(
             }
         }
     }
-
-    /**
-     * todo Вычисляет fingerprint для голосовой верификации
-     */
-//    fun calculateFingerprint(userId: String): String? {
-//        viewModelScope.launch {
-//            val contact = contactRepository.getContact(userId)
-//            if (contact != null) {
-//                return@launch cryptoManager.calculateFingerprint(contact.identityPublicKey)
-//            }
-//        }
-//        return null
-//    }
 
     fun openChat(peerUserId: String) {
         viewModelScope.launch {
@@ -133,15 +160,26 @@ class ContactsViewModel @Inject constructor(
     fun resetState() {
         _uiState.value = ContactsUiState.Idle
     }
+
+    companion object {
+        private const val MIN_QUERY_LEN = 3
+    }
 }
 
 sealed class ContactsUiState {
     object Idle : ContactsUiState()
     object Loading : ContactsUiState()
-    data class UserFound(val contact: VerifiedContact) : ContactsUiState()
     data class ContactVerified(val username: String) : ContactsUiState()
     data class ChatCreated(val chatId: String, val peerUserId: String) : ContactsUiState()
     data class Error(val message: String) : ContactsUiState()
+}
+
+sealed class SearchUiState {
+    object Idle : SearchUiState()            // запрос пустой/короткий — показываем контакты
+    object Loading : SearchUiState()
+    object Empty : SearchUiState()           // ничего не найдено
+    data class Results(val users: List<UserSearchResult>) : SearchUiState()
+    data class Error(val message: String) : SearchUiState()
 }
 
 data class QRCodeData(

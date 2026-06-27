@@ -96,4 +96,11 @@ class Converters {
 
     @androidx.room.TypeConverter
     fun toMessageStatus(value: String): MessageStatus = MessageStatus.valueOf(value)
+
+    @androidx.room.TypeConverter
+    fun fromVerificationMethod(method: VerificationMethod): String = method.storageValue
+
+    @androidx.room.TypeConverter
+    fun toVerificationMethod(value: String): VerificationMethod =
+        VerificationMethod.fromStorage(value)
 }

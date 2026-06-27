@@ -7,6 +7,7 @@ import com.p2p.data.local.entities.Chat
 import com.p2p.data.local.entities.Message
 import com.p2p.data.repository.AuthRepository
 import com.p2p.data.repository.ChatRepository
+import com.p2p.data.repository.ContactRepository
 import com.p2p.data.repository.WebRTCRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -18,6 +19,7 @@ class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val webRTCRepository: WebRTCRepository,
     private val authRepository: AuthRepository,
+    private val contactRepository: ContactRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -42,6 +44,15 @@ class ChatViewModel @Inject constructor(
         .map { it.second }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
+    val isPeerVerified: StateFlow<Boolean> = contactRepository.getAllContacts()
+        .map { contacts -> contacts.firstOrNull { it.userId == peerUserId } }
+        .map { it?.verificationMethod?.isVerified == true }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    // Предупреждение о смене identity-ключа собеседника
+    private val _keyChanged = MutableStateFlow(false)
+    val keyChanged: StateFlow<Boolean> = _keyChanged.asStateFlow()
+
     init {
         // пометка чата как прочитанного
         viewModelScope.launch {
@@ -59,6 +70,17 @@ class ChatViewModel @Inject constructor(
 
         // установление P2P соединения
         initiateP2PConnection()
+
+        // детект смены ключа собеседника (возможный MITM / переустановка)
+        viewModelScope.launch {
+            if (contactRepository.detectKeyChange(peerUserId)) {
+                _keyChanged.value = true
+            }
+        }
+    }
+
+    fun dismissKeyChangeWarning() {
+        _keyChanged.value = false
     }
 
     fun sendMessage(content: String) {

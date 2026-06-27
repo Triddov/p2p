@@ -16,7 +16,6 @@ import org.signal.libsignal.protocol.message.SignalMessage
 import org.signal.libsignal.protocol.state.PreKeyBundle
 import org.signal.libsignal.protocol.state.PreKeyRecord
 import org.signal.libsignal.protocol.state.SignedPreKeyRecord
-import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -137,20 +136,19 @@ class CryptoManager @Inject constructor(
     fun hasSessionWith(userId: String): Boolean =
         store.containsSession(SignalProtocolAddress(userId, DEVICE_ID))
 
+    /**
+     * Сбрасывает крипто-состояние при смене identity-ключа собеседника:
+     * удаляет старую сессию и пере-пинит новый ключ как доверенный (TOFU),
+     * иначе новая X3DH-сессия упадёт с UntrustedIdentityException.
+     */
+    fun resetSessionForNewKey(userId: String, newIdentityKey: ByteArray) {
+        val address = SignalProtocolAddress(userId, DEVICE_ID)
+        store.deleteAllSessions(userId)
+        store.saveIdentity(address, IdentityKey(newIdentityKey, 0))
+    }
+
     fun getIdentityPublicKey(): ByteArray =
         store.getIdentityKeyPair().publicKey.serialize()
-
-    /**
-     * Визуальный fingerprint публичного ключа для голосовой верификации.
-     * Формат: "ABCD EFGH IJKL MNOP" (SHA-256, первые 6 байт, base32-подобная кодировка)
-     */
-    // TODO:
-    fun calculateFingerprint(publicKeyBytes: ByteArray): String {
-        val hash = MessageDigest.getInstance("SHA-256").digest(publicKeyBytes)
-        val encoded = Base64.encodeToString(hash.copyOf(6), Base64.NO_PADDING or Base64.NO_WRAP)
-            .replace('+', 'A').replace('/', 'B').take(20)
-        return encoded.chunked(4).joinToString(" ")
-    }
 
     fun toBase64(bytes: ByteArray): String =
         Base64.encodeToString(bytes, Base64.NO_WRAP)

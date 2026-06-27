@@ -29,6 +29,8 @@ fun ChatScreen(
     val chat by viewModel.chat.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val isP2PConnected by viewModel.isP2PConnected.collectAsState()
+    val isPeerVerified by viewModel.isPeerVerified.collectAsState()
+    val keyChanged by viewModel.keyChanged.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
 
     var messageText by remember { mutableStateOf(TextFieldValue("")) }
@@ -52,7 +54,22 @@ fun ChatScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(chat?.peerUsername ?: "Chat")
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(chat?.peerUsername ?: "Chat")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = if (isPeerVerified)
+                                    Icons.Default.Verified
+                                else
+                                    Icons.Default.GppMaybe,
+                                contentDescription = if (isPeerVerified) "Verified" else "Not verified",
+                                modifier = Modifier.size(16.dp),
+                                tint = if (isPeerVerified)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.tertiary
+                            )
+                        }
                         Text(
                             text = if (isP2PConnected) "P2P Connected" else "Via Server",
                             style = MaterialTheme.typography.bodySmall,
@@ -76,6 +93,38 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            if (keyChanged) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Security key changed",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Text(
+                                text = "The contact may have reinstalled the app — or it could be an attack. Re-verify by scanning their QR in Contacts.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        TextButton(onClick = { viewModel.dismissKeyChangeWarning() }) { Text("Dismiss") }
+                    }
+                }
+            }
+
             // Messages list
             LazyColumn(
                 modifier = Modifier

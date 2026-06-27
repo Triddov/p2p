@@ -19,7 +19,7 @@ interface ApiService {
     suspend fun setUsername(@Body request: SetUsernameRequest): SetUsernameResponse
 
     @GET("api/users/search")
-    suspend fun searchUser(@Query("q") username: String): SearchUserResponse
+    suspend fun searchUsers(@Query("q") query: String): SearchUsersResponse
 
     @GET("api/users/{userId}")
     suspend fun getUser(@Path("userId") userId: String): UserDto

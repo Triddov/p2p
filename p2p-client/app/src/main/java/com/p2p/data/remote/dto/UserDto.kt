@@ -2,9 +2,8 @@ package com.p2p.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
 
-data class SearchUserResponse(
-    val found: Boolean,
-    val user: UserDto?
+data class SearchUsersResponse(
+    val users: List<UserDto>
 )
 
 data class UserDto(

@@ -31,7 +31,7 @@ data class VerifiedContact(
     val username: String?,
     val identityPublicKey: ByteArray,
     val verifiedAt: Long,
-    val verificationMethod: String, // "qr_scan" or "fingerprint_voice"
+    val verificationMethod: VerificationMethod,
     val lastSeen: Long? = null
 ) {
     override fun equals(other: Any?): Boolean {
@@ -73,6 +73,22 @@ enum class MessageStatus {
     DELIVERED,
     READ,
     FAILED
+}
+
+/**
+ * Уровень доверия к контакту.
+ * storageValue — стабильное строковое представление в БД (не зависит от имени константы).
+ */
+enum class VerificationMethod(val storageValue: String) {
+    TOFU("tofu"),          // trust on first use, не верифицирован
+    QR_SCAN("qr_scan");    // верифицирован сканированием QR
+
+    val isVerified: Boolean get() = this == QR_SCAN
+
+    companion object {
+        fun fromStorage(value: String): VerificationMethod =
+            entries.firstOrNull { it.storageValue == value } ?: TOFU
+    }
 }
 
 // Signal Protocol storage entities

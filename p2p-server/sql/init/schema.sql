@@ -38,7 +38,7 @@ CREATE TABLE users (
 
 -- Indexes
 CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_username ON users(LOWER(username)) WHERE username IS NOT NULL;
+CREATE INDEX idx_users_username_prefix ON users (LOWER(username) text_pattern_ops) WHERE username IS NOT NULL;
 CREATE INDEX idx_users_online ON users(last_seen DESC) WHERE online = TRUE;
 
 -- comments
