@@ -117,6 +117,101 @@ func (h *Handler) RegisterPrekeys(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+type UpdateSignedPrekeyRequest struct {
+	SignedPrekeyID  int    `json:"signed_prekey_id" binding:"required"`
+	SignedPrekey    string `json:"signed_prekey" binding:"required"`
+	SignedPrekeySig string `json:"signed_prekey_signature" binding:"required"`
+}
+
+// UpdateSignedPrekey godoc
+// @Summary      Ротация signed prekey
+// @Description  Заменяет signed prekey текущего пользователя (периодическая ротация). Ключи — base64.
+// @Tags         Keys
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      UpdateSignedPrekeyRequest  true  "Новый signed prekey"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /keys/signed-prekey [put]
+func (h *Handler) UpdateSignedPrekey(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	var req UpdateSignedPrekeyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	pub, err := base64.StdEncoding.DecodeString(req.SignedPrekey)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signed_prekey encoding"})
+		return
+	}
+	sig, err := base64.StdEncoding.DecodeString(req.SignedPrekeySig)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signed_prekey_signature encoding"})
+		return
+	}
+
+	if err := h.service.UpdateSignedPrekey(c.Request.Context(), userID, req.SignedPrekeyID, pub, sig); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+type AddOneTimePrekeysRequest struct {
+	OneTimePrekeys []OneTimePrekeyDTO `json:"one_time_prekeys" binding:"required"`
+}
+
+// AddOneTimePrekeys godoc
+// @Summary      Дозалить one-time prekeys
+// @Description  Пополняет пул OTK текущего пользователя (когда пул на сервере истощается).
+// @Tags         Keys
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      AddOneTimePrekeysRequest  true  "Новые OTK (base64)"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /keys/otks [post]
+func (h *Handler) AddOneTimePrekeys(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	var req AddOneTimePrekeysRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	otks := make([]models.OneTimePrekey, 0, len(req.OneTimePrekeys))
+	for _, dto := range req.OneTimePrekeys {
+		pk, err := base64.StdEncoding.DecodeString(dto.PublicKey)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid one_time_prekey encoding"})
+			return
+		}
+		otks = append(otks, models.OneTimePrekey{
+			UserID:    userID,
+			PrekeyID:  dto.ID,
+			PublicKey: pk,
+		})
+	}
+
+	if err := h.service.AddOneTimePrekeys(c.Request.Context(), userID, otks); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 // GetPrekeyBundle godoc
 // @Summary      Получить prekey-бандл собеседника
 // @Description  Возвращает prekey-бандл указанного пользователя для установки X3DH-сессии.

@@ -4,6 +4,7 @@ import android.util.Base64
 import com.p2p.data.remote.dto.OneTimePrekeyDto
 import com.p2p.data.remote.dto.PrekeyBundleResponse
 import com.p2p.data.remote.dto.RegisterPrekeysRequest
+import com.p2p.data.remote.dto.UpdateSignedPrekeyRequest
 import org.signal.libsignal.protocol.IdentityKey
 import org.signal.libsignal.protocol.IdentityKeyPair
 import org.signal.libsignal.protocol.SessionBuilder
@@ -28,6 +29,7 @@ class CryptoManager @Inject constructor(
         private const val DEVICE_ID = 1
         private const val OTK_BATCH_SIZE = 100
         private const val SIGNED_PREKEY_ID = 1
+        private const val SIGNED_PREKEY_GRACE_MS = 30L * 24 * 60 * 60 * 1000
     }
 
     fun isInitialized(): Boolean = store.isInitialized()
@@ -76,6 +78,58 @@ class CryptoManager @Inject constructor(
             oneTimePrekeys = preKeys.map { pk ->
                 OneTimePrekeyDto(pk.id, toBase64(pk.keyPair.publicKey.serialize()))
             }
+        )
+    }
+
+    /**
+     * Генерирует новую пачку one-time prekeys со случайными уникальными id,
+     * сохраняет их локально и возвращает для загрузки на сервер (пополнение пула).
+     */
+    fun generateMoreOneTimePrekeys(count: Int): List<OneTimePrekeyDto> {
+        val random = SecureRandom()
+        val result = ArrayList<OneTimePrekeyDto>(count)
+        var generated = 0
+        while (generated < count) {
+            val id = random.nextInt(0xFFFFFE) + 1
+            if (store.containsPreKey(id)) continue // избегаем коллизий id
+            val record = PreKeyRecord(id, Curve.generateKeyPair())
+            store.storePreKey(id, record)
+            result.add(OneTimePrekeyDto(id, toBase64(record.keyPair.publicKey.serialize())))
+            generated++
+        }
+        return result
+    }
+
+    /**
+     * Ротирует signed prekey, если текущий старше maxAgeMs. Возвращает данные для
+     * загрузки на сервер (или null, если ротация не нужна). Старые signed prekey
+     * удаляются после grace-периода (они ещё нужны для обработки PREKEY-сообщений,
+     * отправленных по старому бандлу); текущий сохраняется.
+     */
+    fun rotateSignedPrekeyIfNeeded(maxAgeMs: Long): UpdateSignedPrekeyRequest? {
+        val records = store.loadSignedPreKeys()
+        val now = System.currentTimeMillis()
+        val newest = records.maxByOrNull { it.timestamp }
+        if (newest != null && now - newest.timestamp < maxAgeMs) return null
+
+        val newId = (records.maxOfOrNull { it.id } ?: SIGNED_PREKEY_ID) + 1
+        val identityKeyPair = store.getIdentityKeyPair()
+        val signedKeyPair = Curve.generateKeyPair()
+        val signature = Curve.calculateSignature(
+            identityKeyPair.privateKey,
+            signedKeyPair.publicKey.serialize()
+        )
+        val record = SignedPreKeyRecord(newId, now, signedKeyPair, signature)
+        store.storeSignedPreKey(newId, record)
+
+        // Чистим старые signed prekey (кроме нового), пережившие grace-период.
+        records.filter { it.id != newId && now - it.timestamp > SIGNED_PREKEY_GRACE_MS }
+            .forEach { store.removeSignedPreKey(it.id) }
+
+        return UpdateSignedPrekeyRequest(
+            signedPrekeyId = newId,
+            signedPrekey = toBase64(signedKeyPair.publicKey.serialize()),
+            signedPrekeySig = toBase64(signature)
         )
     }
 

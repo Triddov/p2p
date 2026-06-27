@@ -9,21 +9,34 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // todo
-	},
-}
-
 type Handler struct {
 	hub       *Hub
 	jwtSecret string
+	upgrader  websocket.Upgrader
 }
 
-func NewHandler(hub *Hub, jwtSecret string) *Handler {
+func NewHandler(hub *Hub, jwtSecret string, allowedOrigins []string) *Handler {
+	allowed := make(map[string]bool, len(allowedOrigins))
+	allowAll := false
+	for _, o := range allowedOrigins {
+		if o == "*" {
+			allowAll = true
+		}
+		allowed[o] = true
+	}
+
 	return &Handler{
 		hub:       hub,
 		jwtSecret: jwtSecret,
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				origin := r.Header.Get("Origin")
+				if origin == "" {
+					return true
+				}
+				return allowAll || allowed[origin]
+			},
+		},
 	}
 }
 
@@ -42,7 +55,7 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 	}
 
 	// Апгрейд до WebSocket с http 101
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("Failed to upgrade connection: %v", err)
 		return

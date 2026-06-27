@@ -38,6 +38,11 @@ class ChatListViewModel @Inject constructor(
         // Нужен для гарантированной доставки офлайн-сообщений, пока нет push (FCM):
         // выборка идемпотентна, повторы безопасны (без потерь и дублей).
         startPendingMessagesPolling()
+
+        viewModelScope.launch {
+            authRepository.replenishOneTimePrekeysIfNeeded()
+            authRepository.rotateSignedPrekeyIfNeeded()
+        }
     }
 
     private fun startPendingMessagesPolling() {

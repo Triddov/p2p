@@ -31,6 +31,12 @@ interface ApiService {
     @PUT("api/keys/prekeys")
     suspend fun registerPrekeys(@Body request: RegisterPrekeysRequest)
 
+    @POST("api/keys/otks")
+    suspend fun addOneTimePrekeys(@Body request: AddOneTimePrekeysRequest)
+
+    @PUT("api/keys/signed-prekey")
+    suspend fun updateSignedPrekey(@Body request: UpdateSignedPrekeyRequest)
+
     @GET("api/keys/{userId}")
     suspend fun getPrekeyBundle(@Path("userId") userId: String): PrekeyBundleResponse
 

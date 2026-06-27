@@ -144,10 +144,42 @@ class AuthRepository @Inject constructor(
         userDao.clearLocalProfile()
     }
 
+    /**
+     * Пополняет пул one-time prekeys на сервере, если он истощается
+     * OTK расходуются по одному при каждой новой X3DH-сессии; без пополнения
+     * после ~сотни первых контактов forward secrecy первого сообщения слабеет
+     */
+    suspend fun replenishOneTimePrekeysIfNeeded() {
+        runCatching {
+            if (!cryptoManager.isInitialized()) return
+            val count = apiService.getOtkCount().count
+            if (count >= OTK_LOW_THRESHOLD) return
+            val newOtks = cryptoManager.generateMoreOneTimePrekeys(OTK_TARGET - count)
+            apiService.addOneTimePrekeys(AddOneTimePrekeysRequest(newOtks))
+        }
+    }
+
+    /**
+     * Ротирует signed prekey, если он устарел (крипто-гигиена). Best-effort
+     */
+    suspend fun rotateSignedPrekeyIfNeeded() {
+        runCatching {
+            if (!cryptoManager.isInitialized()) return
+            val upload = cryptoManager.rotateSignedPrekeyIfNeeded(SIGNED_PREKEY_MAX_AGE_MS) ?: return
+            apiService.updateSignedPrekey(upload)
+        }
+    }
+
     private fun getDeviceId(): String {
         return Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ANDROID_ID
         )
+    }
+
+    companion object {
+        private const val OTK_LOW_THRESHOLD = 20
+        private const val OTK_TARGET = 100
+        private const val SIGNED_PREKEY_MAX_AGE_MS = 7L * 24 * 60 * 60 * 1000
     }
 }

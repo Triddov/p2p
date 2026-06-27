@@ -150,6 +150,8 @@ func main() {
 
 		// Signal Protocol keys
 		protected.PUT("/keys/prekeys", keysHandler.RegisterPrekeys)
+		protected.PUT("/keys/signed-prekey", keysHandler.UpdateSignedPrekey)
+		protected.POST("/keys/otks", keysHandler.AddOneTimePrekeys)
 		protected.GET("/keys/:userId", keysHandler.GetPrekeyBundle)
 		protected.GET("/keys/count", keysHandler.GetOTKCount)
 	}

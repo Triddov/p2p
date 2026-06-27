@@ -34,7 +34,7 @@ func main() {
 	go hub.Run()
 
 	// Handler
-	handler := signaling.NewHandler(hub, cfg.JWTSecret)
+	handler := signaling.NewHandler(hub, cfg.JWTSecret, cfg.AllowedOrigins)
 
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)

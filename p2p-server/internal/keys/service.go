@@ -64,6 +64,40 @@ func (s *Service) RegisterPrekeys(
 	return nil
 }
 
+// UpdateSignedPrekey заменяет signed prekey пользователя (периодическая ротация)
+func (s *Service) UpdateSignedPrekey(ctx context.Context, userID string, prekeyID int, pub, sig []byte) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO signed_prekeys (user_id, prekey_id, public_key, signature)
+		 VALUES ($1, $2, $3, $4)
+		 ON CONFLICT (user_id) DO UPDATE
+		 SET prekey_id = EXCLUDED.prekey_id,
+		     public_key = EXCLUDED.public_key,
+		     signature = EXCLUDED.signature,
+		     created_at = NOW()`,
+		userID, prekeyID, pub, sig,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update signed prekey: %w", err)
+	}
+	return nil
+}
+
+// AddOneTimePrekeys дозаливает пул one-time prekeys (пополнение клиентом
+func (s *Service) AddOneTimePrekeys(ctx context.Context, userID string, oneTimePrekeys []models.OneTimePrekey) error {
+	for _, otk := range oneTimePrekeys {
+		_, err := s.db.ExecContext(ctx,
+			`INSERT INTO one_time_prekeys (user_id, prekey_id, public_key)
+			 VALUES ($1, $2, $3)
+			 ON CONFLICT (user_id, prekey_id) DO NOTHING`,
+			userID, otk.PrekeyID, otk.PublicKey,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to store prekey %d: %w", otk.PrekeyID, err)
+		}
+	}
+	return nil
+}
+
 // GetPrekeyBundle формирует prekey bundle для установки X3DH сессии.
 // Атомарно изымает один OTK из пула (если есть). Без OTK тож валидно по спецификации
 func (s *Service) GetPrekeyBundle(ctx context.Context, userID string) (*models.PrekeyBundle, error) {
