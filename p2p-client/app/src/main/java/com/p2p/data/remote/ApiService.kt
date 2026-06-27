@@ -11,9 +11,6 @@ interface ApiService {
     @POST("api/auth/verify")
     suspend fun verifyCode(@Body request: VerifyCodeRequest): VerifyCodeResponse
 
-    @POST("api/auth/refresh")
-    suspend fun refreshToken(@Body request: RefreshTokenRequest): RefreshTokenResponse
-
     // User
     @POST("api/users/set-username")
     suspend fun setUsername(@Body request: SetUsernameRequest): SetUsernameResponse

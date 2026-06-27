@@ -1,7 +1,9 @@
 package com.p2p.data.repository
 
+import com.p2p.domain.signaling.SignalType
 import com.p2p.domain.signaling.SignalingClient
 import com.p2p.domain.webrtc.WebRTCManager
+import com.p2p.util.LogTags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
@@ -38,6 +40,7 @@ class WebRTCRepository @Inject constructor(
      * Инициирует P2P соединение с собеседником
      */
     fun initiateConnection(myUserId: String, peerUserId: String) {
+        android.util.Log.i(LogTags.WEBRTC, "[$peerUserId] initiating P2P connection")
         val iceCandidates = mutableListOf<IceCandidate>()
 
         webRTCManager.createPeerConnection(
@@ -61,8 +64,9 @@ class WebRTCRepository @Inject constructor(
      * Обрабатывает входящие сигналы
      */
     private fun handleSignal(fromPeerId: String, signal: com.p2p.domain.signaling.SignalMessage) {
+        android.util.Log.d(LogTags.WEBRTC, "[$fromPeerId] signal received: ${signal.type}")
         when (signal.type) {
-            "offer" -> {
+            SignalType.OFFER -> {
                 if (signal.sdp == null) return
 
                 val offer = SessionDescription(SessionDescription.Type.OFFER, signal.sdp)
@@ -91,7 +95,7 @@ class WebRTCRepository @Inject constructor(
                 }
             }
 
-            "answer" -> {
+            SignalType.ANSWER -> {
                 if (signal.sdp == null) return
 
                 val answer = SessionDescription(SessionDescription.Type.ANSWER, signal.sdp)
@@ -103,11 +107,13 @@ class WebRTCRepository @Inject constructor(
                 }
             }
 
-            "ice_candidate" -> {
+            SignalType.ICE_CANDIDATE -> {
                 signal.iceCandidate?.let { candidateDto ->
                     webRTCManager.addIceCandidate(fromPeerId, candidateDto.toIceCandidate())
                 }
             }
+
+            else -> {} // ERROR / неизвестный тип - игнорировать
         }
     }
 

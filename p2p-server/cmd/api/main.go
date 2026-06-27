@@ -16,7 +16,6 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/Triddov/p2p-server/config"
-	_ "github.com/Triddov/p2p-server/docs"
 	"github.com/Triddov/p2p-server/internal/auth"
 	"github.com/Triddov/p2p-server/internal/database"
 	"github.com/Triddov/p2p-server/internal/keys"

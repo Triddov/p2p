@@ -26,14 +26,6 @@ fun ChatListScreen(
     val chats by viewModel.chats.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(uiState) {
-        if (uiState is ChatListUiState.ChatCreated) {
-            val state = uiState as ChatListUiState.ChatCreated
-            onChatClick(state.chatId, state.peerUserId)
-            viewModel.resetState()
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(

@@ -110,34 +110,6 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * Обновляет пару токенов через refresh token.
-     * Возвращает новый access token или ошибку.
-     */
-    suspend fun refreshTokens(): Result<String> {
-        return try {
-            val profile = userDao.getLocalProfile()
-                ?: return Result.failure(IllegalStateException("Not authenticated"))
-
-            if (profile.refreshToken.isBlank()) {
-                return Result.failure(IllegalStateException("No refresh token"))
-            }
-
-            val response = apiService.refreshToken(RefreshTokenRequest(profile.refreshToken))
-
-            userDao.insertLocalProfile(
-                profile.copy(
-                    accessToken = response.accessToken,
-                    refreshToken = response.refreshToken
-                )
-            )
-
-            Result.success(response.accessToken)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    /**
      * Выход из аккаунта
      */
     suspend fun logout() {

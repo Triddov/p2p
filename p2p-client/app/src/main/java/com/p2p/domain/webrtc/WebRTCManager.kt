@@ -2,6 +2,7 @@ package com.p2p.domain.webrtc
 
 import android.content.Context
 import com.google.gson.Gson
+import com.p2p.util.LogTags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -14,14 +15,12 @@ class WebRTCManager(
 ) {
 
     private val peerConnectionFactory: PeerConnectionFactory by lazy {
-        // 1. инициализация нативной библиотеки WebRTC (один раз)
         val initOptions = PeerConnectionFactory.InitializationOptions
             .builder(context)
             .setEnableInternalTracer(false)
             .createInitializationOptions()
         PeerConnectionFactory.initialize(initOptions)
 
-        // 2. фабрики
         PeerConnectionFactory.builder()
             .setOptions(PeerConnectionFactory.Options().apply {
                 disableNetworkMonitor = true
@@ -66,11 +65,12 @@ class WebRTCManager(
         onIceCandidate: (IceCandidate) -> Unit,
         onOffer: (SessionDescription) -> Unit
     ) {
+        android.util.Log.i(LogTags.WEBRTC, "[$peerId] initiator: creating PeerConnection")
         val pc = peerConnectionFactory.createPeerConnection(
             buildRtcConfig(),
             buildObserver(peerId, onIceCandidate)
         ) ?: run {
-            android.util.Log.e("WebRTC", "createPeerConnection returned null")
+            android.util.Log.e(LogTags.WEBRTC, "[$peerId] createPeerConnection returned null")
             return
         }
 
@@ -84,11 +84,12 @@ class WebRTCManager(
         // генерация Offer; отправка откладывается до завершения ICE gathering
         pc.createOffer(object : SdpObserverAdapter() {
             override fun onCreateSuccess(sdp: SessionDescription) {
+                android.util.Log.d(LogTags.WEBRTC, "[$peerId] offer created, gathering ICE…")
                 pc.setLocalDescription(SdpObserverAdapter(), sdp)
                 pendingCallbacks[peerId] = sdp to onOffer
             }
             override fun onCreateFailure(error: String) {
-                android.util.Log.e("WebRTC", "createOffer failed: $error")
+                android.util.Log.e(LogTags.WEBRTC, "[$peerId] createOffer failed: $error")
             }
         }, MediaConstraints())
     }
@@ -101,11 +102,12 @@ class WebRTCManager(
         onIceCandidate: (IceCandidate) -> Unit,
         onAnswer: (SessionDescription) -> Unit
     ) {
+        android.util.Log.i(LogTags.WEBRTC, "[$peerId] answerer: handling offer, creating PeerConnection")
         val pc = peerConnectionFactory.createPeerConnection(
             buildRtcConfig(),
             buildObserver(peerId, onIceCandidate)
         ) ?: run {
-            android.util.Log.e("WebRTC", "createPeerConnection returned null")
+            android.util.Log.e(LogTags.WEBRTC, "[$peerId] createPeerConnection returned null")
             return
         }
 
@@ -116,11 +118,12 @@ class WebRTCManager(
         // генерация Answer; отправка откладывается до завершения ICE gathering
         pc.createAnswer(object : SdpObserverAdapter() {
             override fun onCreateSuccess(sdp: SessionDescription) {
+                android.util.Log.d(LogTags.WEBRTC, "[$peerId] answer created, gathering ICE…")
                 pc.setLocalDescription(SdpObserverAdapter(), sdp)
                 pendingCallbacks[peerId] = sdp to onAnswer
             }
             override fun onCreateFailure(error: String) {
-                android.util.Log.e("WebRTC", "createAnswer failed: $error")
+                android.util.Log.e(LogTags.WEBRTC, "[$peerId] createAnswer failed: $error")
             }
         }, MediaConstraints())
     }
@@ -128,12 +131,14 @@ class WebRTCManager(
     // Установка Answer от удалённого пира
 
     fun handleAnswer(peerId: String, answer: SessionDescription) {
+        android.util.Log.d(LogTags.WEBRTC, "[$peerId] remote answer received")
         peerConnections[peerId]?.setRemoteDescription(SdpObserverAdapter(), answer)
     }
 
     //  Добавление ICE candidate
 
     fun addIceCandidate(peerId: String, candidate: IceCandidate) {
+        android.util.Log.d(LogTags.WEBRTC, "[$peerId] adding remote ICE candidate")
         peerConnections[peerId]?.addIceCandidate(candidate)
     }
 
@@ -176,8 +181,6 @@ class WebRTCManager(
     }
 
 
-    // todo helpers
-
     /**
      * Строит PeerConnection.Observer с нужными колбеками.
      * Все методы интерфейса реализованы через PeerConnectionObserver (no-op base).
@@ -188,21 +191,31 @@ class WebRTCManager(
     ): PeerConnection.Observer = object : PeerConnectionObserver() {
 
         override fun onIceCandidate(candidate: IceCandidate) {
+            android.util.Log.d(LogTags.WEBRTC, "[$peerId] local ICE candidate gathered")
             onIceCandidate(candidate)
         }
 
         override fun onIceGatheringChange(state: PeerConnection.IceGatheringState) {
+            android.util.Log.d(LogTags.WEBRTC, "[$peerId] ICE gathering: $state")
             if (state == PeerConnection.IceGatheringState.COMPLETE) {
+                android.util.Log.d(LogTags.WEBRTC, "[$peerId] ICE gathering complete → sending SDP")
                 pendingCallbacks.remove(peerId)?.let { (sdp, callback) -> callback(sdp) }
             }
         }
 
+        // Ход ICE-согласования — самое информативное для диагностики P2P.
+        override fun onIceConnectionChange(state: PeerConnection.IceConnectionState) {
+            android.util.Log.i(LogTags.WEBRTC, "[$peerId] ICE connection: $state")
+        }
+
         // Входящий DataChannel — со стороны получателя
         override fun onDataChannel(dc: DataChannel) {
+            android.util.Log.d(LogTags.WEBRTC, "[$peerId] incoming DataChannel")
             setupDataChannel(peerId, dc)
         }
 
         override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
+            android.util.Log.i(LogTags.WEBRTC, "[$peerId] PeerConnection state: $newState")
             val connected = newState == PeerConnection.PeerConnectionState.CONNECTED
             scope.launch { _connectionStateFlow.emit(peerId to connected) }
         }
@@ -224,7 +237,12 @@ class WebRTCManager(
             }
 
             override fun onStateChange() {
-                android.util.Log.d("WebRTC", "DataChannel[$peerId] → ${dc.state()}")
+                val state = dc.state()
+                if (state == DataChannel.State.OPEN) {
+                    android.util.Log.i(LogTags.WEBRTC, "[$peerId] DataChannel OPEN — P2P ready")
+                } else {
+                    android.util.Log.d(LogTags.WEBRTC, "[$peerId] DataChannel → $state")
+                }
             }
 
             override fun onBufferedAmountChange(amount: Long) {}
@@ -265,6 +283,6 @@ open class SdpObserverAdapter : SdpObserver {
     override fun onSetSuccess()                           {}
     override fun onCreateFailure(error: String)           {}
     override fun onSetFailure(error: String)              {
-        android.util.Log.e("WebRTC", "setDescription failed: $error")
+        android.util.Log.e(LogTags.WEBRTC, "setDescription failed: $error")
     }
 }

@@ -58,6 +58,27 @@ class ContactRepository @Inject constructor(
     }
 
     /**
+     * Гарантирует наличие TOFU-контакта: если его нет — тянет профиль с сервера
+     * и сохраняет как непроверенный. Best-effort (молча при ошибке сети).
+     * Используется при приёме сообщения от незнакомого отправителя.
+     */
+    suspend fun ensureTofuContact(userId: String) {
+        if (contactDao.getContact(userId) != null) return
+        runCatching {
+            val user = apiService.getUser(userId)
+            contactDao.insertContact(
+                VerifiedContact(
+                    userId = user.id,
+                    username = user.username,
+                    identityPublicKey = cryptoManager.fromBase64(user.identityPublicKey),
+                    verifiedAt = 0L,
+                    verificationMethod = VerificationMethod.TOFU
+                )
+            )
+        }
+    }
+
+    /**
      * Добавляет контакт после сканирования QR
      */
     suspend fun addVerifiedContact(

@@ -6,6 +6,7 @@ import com.p2p.data.local.entities.Chat
 import com.p2p.data.repository.AuthRepository
 import com.p2p.data.repository.ChatRepository
 import com.p2p.data.repository.ContactRepository
+import com.p2p.data.repository.MessagingService
 import com.p2p.data.repository.WebRTCRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -16,6 +17,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatListViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
+    private val messagingService: MessagingService,
     private val contactRepository: ContactRepository,
     private val webRTCRepository: WebRTCRepository,
     private val authRepository: AuthRepository
@@ -49,7 +51,7 @@ class ChatListViewModel @Inject constructor(
         viewModelScope.launch {
             while (true) {
                 delay(POLL_INTERVAL_MS)
-                chatRepository.fetchPendingMessages()
+                messagingService.fetchPendingMessages()
             }
         }
     }
@@ -66,7 +68,7 @@ class ChatListViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = ChatListUiState.Loading
 
-            chatRepository.fetchPendingMessages()
+            messagingService.fetchPendingMessages()
                 .onSuccess { messages ->
                     _uiState.value = if (messages.isEmpty()) {
                         ChatListUiState.Idle
@@ -77,22 +79,6 @@ class ChatListViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiState.value = ChatListUiState.Error(error.message ?: "Failed to fetch messages")
                 }
-        }
-    }
-
-    fun createChatWithContact(peerUserId: String) {
-        viewModelScope.launch {
-            _uiState.value = ChatListUiState.Loading
-
-            try {
-                val existingChat = chatRepository.getChatByPeer(peerUserId)
-
-                val chat = existingChat ?: chatRepository.createChat(peerUserId)
-
-                _uiState.value = ChatListUiState.ChatCreated(chat.id, peerUserId)
-            } catch (e: Exception) {
-                _uiState.value = ChatListUiState.Error(e.message ?: "Failed to create chat")
-            }
         }
     }
 
@@ -114,6 +100,5 @@ sealed class ChatListUiState {
     object Idle : ChatListUiState()
     object Loading : ChatListUiState()
     data class NewMessages(val count: Int) : ChatListUiState()
-    data class ChatCreated(val chatId: String, val peerUserId: String) : ChatListUiState()
     data class Error(val message: String) : ChatListUiState()
 }

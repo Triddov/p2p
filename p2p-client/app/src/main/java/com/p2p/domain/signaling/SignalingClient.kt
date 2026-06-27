@@ -1,6 +1,8 @@
 package com.p2p.domain.signaling
 
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
+import com.p2p.util.LogTags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -51,6 +53,7 @@ class SignalingClient(
 
         webSocket = httpClient.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                android.util.Log.i(LogTags.SIGNALING, "WebSocket connected")
                 reconnectDelaySeconds = 1L
                 scope.launch { _connectionState.emit(true) }
             }
@@ -60,7 +63,7 @@ class SignalingClient(
                     val message = gson.fromJson(text, SignalMessage::class.java)
                     scope.launch { _signalFlow.emit(message) }
                 } catch (e: Exception) {
-                    println("Failed to parse signal: ${e.message}")
+                    android.util.Log.e(LogTags.SIGNALING, "Failed to parse signal: ${e.message}")
                 }
             }
 
@@ -69,13 +72,14 @@ class SignalingClient(
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                android.util.Log.i(LogTags.SIGNALING, "WebSocket closing: $code $reason")
                 webSocket.close(1000, null)
                 scope.launch { _connectionState.emit(false) }
                 scheduleReconnect()
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                println("Signaling failed: ${t.message}")
+                android.util.Log.e(LogTags.SIGNALING, "WebSocket failed: ${t.message}")
                 scope.launch { _connectionState.emit(false) }
                 scheduleReconnect()
             }
@@ -102,7 +106,7 @@ class SignalingClient(
         iceCandidates: List<IceCandidate>
     ) {
         val message = SignalMessage(
-            type = "offer",
+            type = SignalType.OFFER,
             to = toPeerId,
             from = fromPeerId,
             sdp = offer.description,
@@ -122,7 +126,7 @@ class SignalingClient(
         iceCandidates: List<IceCandidate>
     ) {
         val message = SignalMessage(
-            type = "answer",
+            type = SignalType.ANSWER,
             to = toPeerId,
             from = fromPeerId,
             sdp = answer.description,
@@ -137,7 +141,7 @@ class SignalingClient(
      */
     fun sendIceCandidate(toPeerId: String, fromPeerId: String, candidate: IceCandidate) {
         val message = SignalMessage(
-            type = "ice_candidate",
+            type = SignalType.ICE_CANDIDATE,
             to = toPeerId,
             from = fromPeerId,
             iceCandidate = IceCandidateDto.from(candidate)
@@ -158,8 +162,15 @@ class SignalingClient(
     }
 }
 
+enum class SignalType {
+    @SerializedName("offer") OFFER,
+    @SerializedName("answer") ANSWER,
+    @SerializedName("ice_candidate") ICE_CANDIDATE,
+    @SerializedName("error") ERROR
+}
+
 data class SignalMessage(
-    val type: String, // "offer", "answer", "ice_candidate", "error"
+    val type: SignalType?, // null — если пришёл неизвестный тип
     val to: String? = null,
     val from: String? = null,
     val sdp: String? = null,

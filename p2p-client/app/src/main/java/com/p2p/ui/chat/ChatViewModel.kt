@@ -8,6 +8,7 @@ import com.p2p.data.local.entities.Message
 import com.p2p.data.repository.AuthRepository
 import com.p2p.data.repository.ChatRepository
 import com.p2p.data.repository.ContactRepository
+import com.p2p.data.repository.MessagingService
 import com.p2p.data.repository.PeerPresence
 import com.p2p.data.repository.WebRTCRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
+    private val messagingService: MessagingService,
     private val webRTCRepository: WebRTCRepository,
     private val authRepository: AuthRepository,
     private val contactRepository: ContactRepository,
@@ -61,7 +63,7 @@ class ChatViewModel @Inject constructor(
     init {
         // пометка чата как прочитанного
         viewModelScope.launch {
-            chatRepository.markChatAsRead(chatId)
+            messagingService.markChatAsRead(chatId)
         }
 
         // прослушивание входящих P2P сообщений
@@ -106,7 +108,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = ChatUiState.Sending
 
-            chatRepository.sendMessage(chatId, content, peerUserId)
+            messagingService.sendMessage(chatId, content, peerUserId)
                 .onSuccess {
                     _uiState.value = ChatUiState.MessageSent
                 }
@@ -127,12 +129,12 @@ class ChatViewModel @Inject constructor(
     }
 
     private suspend fun handleIncomingP2PMessage(messageJson: String) {
-        chatRepository.handleP2PMessage(peerUserId, messageJson)
+        messagingService.handleP2PMessage(peerUserId, messageJson)
             .onSuccess {
                 // Сообщение обработано
             }
             .onFailure { error ->
-                println("Failed to handle P2P message: ${error.message}")
+                android.util.Log.e("ChatViewModel", "Failed to handle P2P message: ${error.message}")
             }
     }
 

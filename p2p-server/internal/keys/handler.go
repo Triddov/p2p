@@ -16,6 +16,16 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+// decodeB64 декодирует base64-поле; при ошибке - 400 и ok=false.
+func decodeB64(c *gin.Context, value, field string) ([]byte, bool) {
+	b, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid " + field + " encoding"})
+		return nil, false
+	}
+	return b, true
+}
+
 // Request / Response types
 
 type OneTimePrekeyDTO struct {
@@ -70,27 +80,23 @@ func (h *Handler) RegisterPrekeys(c *gin.Context) {
 		return
 	}
 
-	identityKey, err := base64.StdEncoding.DecodeString(req.IdentityKey)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid identity_key encoding"})
+	identityKey, ok := decodeB64(c, req.IdentityKey, "identity_key")
+	if !ok {
 		return
 	}
-	signedPrekey, err := base64.StdEncoding.DecodeString(req.SignedPrekey)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signed_prekey encoding"})
+	signedPrekey, ok := decodeB64(c, req.SignedPrekey, "signed_prekey")
+	if !ok {
 		return
 	}
-	signedPrekeySig, err := base64.StdEncoding.DecodeString(req.SignedPrekeySig)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signed_prekey_signature encoding"})
+	signedPrekeySig, ok := decodeB64(c, req.SignedPrekeySig, "signed_prekey_signature")
+	if !ok {
 		return
 	}
 
 	oneTimePrekeys := make([]models.OneTimePrekey, 0, len(req.OneTimePrekeys))
 	for _, dto := range req.OneTimePrekeys {
-		pk, err := base64.StdEncoding.DecodeString(dto.PublicKey)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid one_time_prekey encoding"})
+		pk, ok := decodeB64(c, dto.PublicKey, "one_time_prekey")
+		if !ok {
 			return
 		}
 		oneTimePrekeys = append(oneTimePrekeys, models.OneTimePrekey{
@@ -145,14 +151,12 @@ func (h *Handler) UpdateSignedPrekey(c *gin.Context) {
 		return
 	}
 
-	pub, err := base64.StdEncoding.DecodeString(req.SignedPrekey)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signed_prekey encoding"})
+	pub, ok := decodeB64(c, req.SignedPrekey, "signed_prekey")
+	if !ok {
 		return
 	}
-	sig, err := base64.StdEncoding.DecodeString(req.SignedPrekeySig)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signed_prekey_signature encoding"})
+	sig, ok := decodeB64(c, req.SignedPrekeySig, "signed_prekey_signature")
+	if !ok {
 		return
 	}
 
@@ -192,9 +196,8 @@ func (h *Handler) AddOneTimePrekeys(c *gin.Context) {
 
 	otks := make([]models.OneTimePrekey, 0, len(req.OneTimePrekeys))
 	for _, dto := range req.OneTimePrekeys {
-		pk, err := base64.StdEncoding.DecodeString(dto.PublicKey)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid one_time_prekey encoding"})
+		pk, ok := decodeB64(c, dto.PublicKey, "one_time_prekey")
+		if !ok {
 			return
 		}
 		otks = append(otks, models.OneTimePrekey{
