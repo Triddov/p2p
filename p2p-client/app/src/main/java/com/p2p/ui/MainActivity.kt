@@ -2,15 +2,17 @@ package com.p2p.ui
 
 import android.os.Bundle
 import androidx.navigation.compose.composable
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.fragment.app.FragmentActivity
+import com.p2p.data.local.AppLockManager
 import com.p2p.data.local.SettingsRepository
 import com.p2p.data.local.ThemeMode
+import com.p2p.ui.lock.LockScreen
 import com.p2p.ui.theme.P2PMessengerTheme
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -25,13 +27,21 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var authRepository: AuthRepository
 
     @Inject
     lateinit var settingsRepository: SettingsRepository
+
+    @Inject
+    lateinit var appLockManager: AppLockManager
+
+    override fun onStop() {
+        super.onStop()
+        appLockManager.lock()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,8 +53,15 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
+            val appLockEnabled by settingsRepository.appLockEnabled.collectAsState(initial = false)
+            val locked by appLockManager.locked.collectAsState()
+
             P2PMessengerTheme(darkTheme = darkTheme) {
                 Surface(color = MaterialTheme.colorScheme.background) {
+                    if (appLockEnabled && locked) {
+                        LockScreen(onUnlocked = { appLockManager.unlock() })
+                        return@Surface
+                    }
                     val navController = rememberNavController()
 
                     NavHost(

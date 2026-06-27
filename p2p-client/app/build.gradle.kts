@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-//    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
 }
@@ -142,6 +141,9 @@ dependencies {
 
 
     implementation("com.google.mlkit:barcode-scanning:17.2.0")
+
+
+    implementation("androidx.biometric:biometric:1.1.0")
 
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
