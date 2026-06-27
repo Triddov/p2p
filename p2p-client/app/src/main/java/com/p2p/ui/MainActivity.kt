@@ -13,9 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.p2p.data.repository.AuthRepository
 import com.p2p.ui.auth.AuthScreen
-import com.p2p.ui.chat.ChatListScreen
 import com.p2p.ui.chat.ChatScreen
-import com.p2p.ui.contacts.ContactsScreen
 import com.p2p.ui.qr.MyQRScreen
 import com.p2p.ui.qr.QRScannerScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -42,7 +40,7 @@ class MainActivity : ComponentActivity() {
                         composable("auth") {
                             AuthScreen(
                                 onAuthenticated = {
-                                    navController.navigate("chat_list") {
+                                    navController.navigate("main") {
                                         popUpTo("auth") { inclusive = true }
                                         launchSingleTop = true
                                     }
@@ -50,16 +48,22 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                            composable("chat_list") {
-                            ChatListScreen(
-                                onChatClick = { chatId, peerUserId ->
+                        composable("main") {
+                            MainScreen(
+                                onOpenChat = { chatId, peerUserId ->
                                     navController.navigate("chat/$chatId/$peerUserId")
                                 },
-                                onContactsClick = {
-                                    navController.navigate("contacts")
+                                onScanQR = {
+                                    navController.navigate("scan_qr")
                                 },
-                                onProfileClick = {
-                                    // TODO: add profile screen
+                                onShowMyQR = {
+                                    navController.navigate("my_qr")
+                                },
+                                onLoggedOut = {
+                                    navController.navigate("auth") {
+                                        popUpTo("main") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
                                 }
                             )
                         }
@@ -73,21 +77,6 @@ class MainActivity : ComponentActivity() {
                         ) {
                             ChatScreen(
                                 onBack = { navController.popBackStack() }
-                            )
-                        }
-
-                        composable("contacts") {
-                            ContactsScreen(
-                                onBack = { navController.popBackStack() },
-                                onContactClick = { chatId, peerUserId ->
-                                    navController.navigate("chat/$chatId/$peerUserId")
-                                },
-                                onScanQR = {
-                                    navController.navigate("scan_qr")
-                                },
-                                onShowMyQR = {
-                                    navController.navigate("my_qr")
-                                }
                             )
                         }
 

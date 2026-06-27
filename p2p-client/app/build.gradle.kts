@@ -74,7 +74,7 @@ android {
 android.applicationVariants.all {
     outputs.all {
         val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-        output.outputFileName = "Точка – и точка(${name}).apk"
+        output.outputFileName = "Точка – и точка.apk"
     }
 }
 

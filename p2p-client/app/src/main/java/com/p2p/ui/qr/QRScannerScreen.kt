@@ -163,16 +163,23 @@ fun QRScannerScreen(
                 }
             }
 
-            // Альтернатива сканированию: вставить ключ текстом из буфера обмена
+            // Альтернатива сканированию: вставить ключ текстом из буфера обмена.
+            // Сплошная (filled) кнопка с непрозрачным фоном — чтобы была читаема
+            // поверх видеопотока камеры.
             val clipboard = LocalClipboardManager.current
-            OutlinedButton(
+            Button(
                 onClick = {
                     clipboard.getText()?.text?.takeIf { it.isNotBlank() }?.let { pasted ->
                         viewModel.handleScannedQR(pasted)
                     }
                 },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
                     .padding(16.dp)
             ) {
                 Text("Paste key from clipboard")

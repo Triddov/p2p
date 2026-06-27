@@ -20,8 +20,7 @@ import java.util.*
 @Composable
 fun ChatListScreen(
     onChatClick: (chatId: String, peerUserId: String) -> Unit,
-    onContactsClick: () -> Unit,
-    onProfileClick: () -> Unit,
+    onNewChat: () -> Unit,
     viewModel: ChatListViewModel = hiltViewModel()
 ) {
     val chats by viewModel.chats.collectAsState()
@@ -43,14 +42,15 @@ fun ChatListScreen(
                     IconButton(onClick = { viewModel.fetchPendingMessages() }) {
                         Icon(Icons.Default.Refresh, "Refresh")
                     }
-                    IconButton(onClick = onProfileClick) {
-                        Icon(Icons.Default.Person, "Profile")
-                    }
                 }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onContactsClick) {
+            FloatingActionButton(
+                onClick = onNewChat,
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+            ) {
                 Icon(Icons.Default.Add, "New chat")
             }
         }
@@ -136,7 +136,10 @@ fun ChatListItem(
 
                 if (chat.unreadCount > 0) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Badge {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        contentColor = MaterialTheme.colorScheme.onTertiary
+                    ) {
                         Text(text = chat.unreadCount.toString())
                     }
                 }

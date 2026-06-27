@@ -18,7 +18,6 @@ import com.p2p.data.local.entities.VerifiedContact
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactsScreen(
-    onBack: () -> Unit,
     onContactClick: (chatId: String, peerUserId: String) -> Unit,
     onScanQR: () -> Unit,
     onShowMyQR: () -> Unit,
@@ -45,11 +44,6 @@ fun ContactsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Contacts") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
-                    }
-                },
                 actions = {
                     IconButton(onClick = { showSearchDialog = true }) {
                         Icon(Icons.Default.Search, "Search user")
