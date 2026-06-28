@@ -74,7 +74,14 @@ fun SettingsScreen(
                 supportingContent = { Text("Allow others to find you by username") },
                 leadingContent = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingContent = {
-                    Switch(checked = discoverable, onCheckedChange = { viewModel.setDiscoverable(it) })
+                    Switch(
+                        checked = discoverable,
+                        onCheckedChange = { viewModel.setDiscoverable(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onTertiary,
+                            checkedTrackColor = MaterialTheme.colorScheme.tertiary
+                        )
+                    )
                 }
             )
 
@@ -90,7 +97,11 @@ fun SettingsScreen(
                         checked = appLockEnabled,
                         onCheckedChange = { enabled ->
                             if (enabled) showPinSetup = true else viewModel.disableAppLock()
-                        }
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onTertiary,
+                            checkedTrackColor = MaterialTheme.colorScheme.tertiary
+                        )
                     )
                 }
             )
@@ -185,7 +196,7 @@ private fun SectionHeader(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
+        color = MaterialTheme.colorScheme.tertiary,
         modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)
     )
 }
@@ -204,7 +215,11 @@ private fun ThemeOptionRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(selected = mode == selected, onClick = { onSelect(mode) })
+        RadioButton(
+            selected = mode == selected,
+            onClick = { onSelect(mode) },
+            colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.tertiary)
+        )
         Spacer(modifier = Modifier.width(12.dp))
         Text(label, style = MaterialTheme.typography.bodyLarge)
     }

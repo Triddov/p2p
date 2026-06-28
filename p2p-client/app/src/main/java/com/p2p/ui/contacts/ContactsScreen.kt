@@ -49,11 +49,17 @@ fun ContactsScreen(
             Column {
                 FloatingActionButton(
                     onClick = onScanQR,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                     modifier = Modifier.padding(bottom = 16.dp)
                 ) {
                     Icon(Icons.Default.QrCodeScanner, "Scan QR")
                 }
-                FloatingActionButton(onClick = onShowMyQR) {
+                FloatingActionButton(
+                    onClick = onShowMyQR,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                ) {
                     Icon(Icons.Default.QrCode, "My QR")
                 }
             }

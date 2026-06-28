@@ -211,8 +211,10 @@ class MessagingService @Inject constructor(
                 P2PMessageType.MESSAGE -> handleIncomingMessage(peerUserId, p2pMessage)
                 P2PMessageType.DELIVERY_RECEIPT ->
                     messageDao.updateMessageStatus(p2pMessage.messageId, MessageStatus.DELIVERED)
-                P2PMessageType.READ_RECEIPT ->
-                    chatDao.getChatByPeer(peerUserId)?.let { messageDao.markOutgoingMessagesRead(it.id) }
+                P2PMessageType.READ_RECEIPT -> {
+                    val chat = chatDao.getChatByPeer(peerUserId)
+                    if (chat != null) messageDao.markOutgoingMessagesRead(chat.id)
+                }
                 null -> error("Unknown P2P message type")
             }
         } }

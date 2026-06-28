@@ -66,8 +66,21 @@ class MainActivity : FragmentActivity() {
 
                     NavHost(
                         navController = navController,
-                        startDestination = "auth"
+                        startDestination = "startup"
                     ) {
+                        composable("startup") {
+                            StartupScreen(
+                                authRepository = authRepository,
+                                onResolved = { loggedIn ->
+                                    val dest = if (loggedIn) "main" else "auth"
+                                    navController.navigate(dest) {
+                                        popUpTo("startup") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                }
+                            )
+                        }
+
                         composable("auth") {
                             AuthScreen(
                                 onAuthenticated = {

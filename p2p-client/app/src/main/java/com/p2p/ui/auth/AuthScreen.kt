@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.p2p.ui.components.FullScreenLoader
 
 @Composable
 fun AuthScreen(
@@ -54,12 +55,7 @@ fun AuthScreen(
             }
         }
 
-        is AuthUiState.Loading -> Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
+        is AuthUiState.Loading -> FullScreenLoader()
 
         is AuthUiState.Error -> Column(
             modifier = Modifier.fillMaxSize().padding(16.dp),
