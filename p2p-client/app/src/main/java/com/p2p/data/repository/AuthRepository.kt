@@ -6,6 +6,8 @@ import com.p2p.data.local.dao.UserDao
 import com.p2p.data.local.entities.LocalProfile
 import com.p2p.data.remote.ApiService
 import com.p2p.data.remote.dto.*
+import com.google.android.gms.tasks.Tasks
+import com.google.firebase.messaging.FirebaseMessaging
 import com.p2p.domain.crypto.CryptoManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -113,7 +115,24 @@ class AuthRepository @Inject constructor(
      * Выход из аккаунта
      */
     suspend fun logout() {
+        runCatching {
+            val token = withContext(Dispatchers.IO) { Tasks.await(FirebaseMessaging.getInstance().token) }
+            apiService.deleteFcmToken(FcmTokenRequest(token))
+        }
         userDao.clearLocalProfile()
+    }
+
+    /** Получает текущий FCM-токен и регистрирует его на сервере (best-effort) */
+    suspend fun registerFcmToken() {
+        runCatching {
+            val token = withContext(Dispatchers.IO) { Tasks.await(FirebaseMessaging.getInstance().token) }
+            apiService.registerFcmToken(FcmTokenRequest(token))
+        }
+    }
+
+    /** Регистрирует конкретный токен (из FirebaseMessagingService.onNewToken) */
+    suspend fun registerFcmToken(token: String) {
+        runCatching { apiService.registerFcmToken(FcmTokenRequest(token)) }
     }
 
     /**

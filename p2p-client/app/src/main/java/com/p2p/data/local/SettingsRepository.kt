@@ -27,6 +27,7 @@ class SettingsRepository @Inject constructor(
     private val discoverableKey = booleanPreferencesKey("discoverable")
     private val appLockKey = booleanPreferencesKey("app_lock_enabled")
     private val pinHashKey = stringPreferencesKey("pin_hash")
+    private val notificationsKey = booleanPreferencesKey("notifications_enabled")
 
     val themeMode: Flow<ThemeMode> = context.settingsDataStore.data.map { prefs ->
         prefs[themeKey]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.SYSTEM
@@ -50,6 +51,14 @@ class SettingsRepository @Inject constructor(
 
     val pinHash: Flow<String?> = context.settingsDataStore.data.map { prefs ->
         prefs[pinHashKey]
+    }
+
+    val notificationsEnabled: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[notificationsKey] ?: true
+    }
+
+    suspend fun setNotificationsEnabled(value: Boolean) {
+        context.settingsDataStore.edit { it[notificationsKey] = value }
     }
 
     suspend fun setAppLock(enabled: Boolean, pinHash: String?) {

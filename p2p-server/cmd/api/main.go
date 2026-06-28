@@ -20,6 +20,7 @@ import (
 	"github.com/Triddov/p2p-server/internal/database"
 	"github.com/Triddov/p2p-server/internal/keys"
 	"github.com/Triddov/p2p-server/internal/message"
+	"github.com/Triddov/p2p-server/internal/push"
 	"github.com/Triddov/p2p-server/internal/user"
 	"github.com/Triddov/p2p-server/pkg/email"
 )
@@ -85,7 +86,19 @@ func main() {
 	// Services
 	authService := auth.NewService(db, rdb, emailSender, cfg.JWTSecret, cfg.JWTExpiration)
 	userService := user.NewService(db)
-	messageService := message.NewService(db)
+
+	var notifier message.Notifier
+	if cfg.FirebaseCredentials != "" {
+		n, err := push.NewNotifier(context.Background(), cfg.FirebaseCredentials, userService)
+		if err != nil {
+			log.Printf("Push disabled: failed to init Firebase: %v", err)
+		} else {
+			notifier = n
+			log.Println("Push (FCM) enabled")
+		}
+	}
+
+	messageService := message.NewService(db, notifier)
 	keysService := keys.NewService(db)
 
 	// Handlers
@@ -139,6 +152,8 @@ func main() {
 		// User
 		protected.POST("/users/set-username", authHandler.SetUsername)
 		protected.PUT("/users/discoverable", userHandler.SetDiscoverable)
+		protected.PUT("/users/fcm-token", userHandler.RegisterFcmToken)
+		protected.DELETE("/users/fcm-token", userHandler.DeleteFcmToken)
 		protected.GET("/users/search", userHandler.SearchUser)
 		protected.GET("/users/:userId", userHandler.GetUser)
 

@@ -74,6 +74,9 @@ services:
       SMTP_FROM: ${SMTP_FROM}
       SMTP_TLS_SERVER_NAME: ${SMTP_TLS_SERVER_NAME}
       ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}
+      FIREBASE_CREDENTIALS: /app/firebase.json
+    volumes:
+      - ./firebase.json:/app/firebase.json:ro
     networks:
       - p2p-backend-net
       - mail-net

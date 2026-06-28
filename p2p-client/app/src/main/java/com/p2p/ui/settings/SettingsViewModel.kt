@@ -29,6 +29,9 @@ class SettingsViewModel @Inject constructor(
     val appLockEnabled: StateFlow<Boolean> = settingsRepository.appLockEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
+    val notificationsEnabled: StateFlow<Boolean> = settingsRepository.notificationsEnabled
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     }
@@ -39,6 +42,10 @@ class SettingsViewModel @Inject constructor(
             val ok = runCatching { apiService.setDiscoverable(SetDiscoverableRequest(value)) }.isSuccess
             if (!ok) settingsRepository.setDiscoverable(!value)
         }
+    }
+
+    fun setNotificationsEnabled(value: Boolean) {
+        viewModelScope.launch { settingsRepository.setNotificationsEnabled(value) }
     }
 
     fun enableAppLock(pin: String) {

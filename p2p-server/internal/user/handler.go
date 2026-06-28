@@ -114,6 +114,66 @@ func (h *Handler) SetDiscoverable(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+type FcmTokenRequest struct {
+	Token string `json:"token" binding:"required"`
+}
+
+// RegisterFcmToken godoc
+// @Summary      Зарегистрировать FCM-токен
+// @Description  Привязывает FCM-токен устройства к текущему пользователю (для push-уведомлений).
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      FcmTokenRequest  true  "FCM-токен"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /users/fcm-token [put]
+func (h *Handler) RegisterFcmToken(c *gin.Context) {
+	userID := c.GetString("user_id")
+
+	var req FcmTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.UpsertDeviceToken(c.Request.Context(), userID, req.Token, "android"); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// DeleteFcmToken godoc
+// @Summary      Удалить FCM-токен
+// @Description  Отвязывает FCM-токен (при выходе из аккаунта).
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      FcmTokenRequest  true  "FCM-токен"
+// @Success      200      {object}  map[string]string
+// @Failure      400      {object}  map[string]string
+// @Failure      401      {object}  map[string]string
+// @Failure      500      {object}  map[string]string
+// @Router       /users/fcm-token [delete]
+func (h *Handler) DeleteFcmToken(c *gin.Context) {
+	var req FcmTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.DeleteDeviceToken(c.Request.Context(), req.Token); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
 // GetUser godoc
 // @Summary      Получить пользователя по ID
 // @Description  Возвращает профиль пользователя вместе с его публичным identity-ключом (base64).

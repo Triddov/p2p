@@ -10,6 +10,10 @@ data class SetDiscoverableRequest(
     val discoverable: Boolean
 )
 
+data class FcmTokenRequest(
+    val token: String
+)
+
 data class UserDto(
     val id: String,
     val username: String?,

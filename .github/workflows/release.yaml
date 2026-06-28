@@ -26,6 +26,9 @@ jobs:
       - name: Install NDK
         run: $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "ndk;26.1.10909125"
 
+      - name: Decode google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON_B64 }}" | base64 --decode > p2p-client/app/google-services.json
+
       - name: Build Release APK
         working-directory: p2p-client/
         run: ./gradlew assembleRelease

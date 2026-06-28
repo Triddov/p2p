@@ -9,12 +9,17 @@ import (
 	"github.com/Triddov/p2p-server/internal/database"
 )
 
-type Service struct {
-	db *database.DB
+type Notifier interface {
+	NotifyNewMessage(ctx context.Context, recipientID string)
 }
 
-func NewService(db *database.DB) *Service {
-	return &Service{db: db}
+type Service struct {
+	db       *database.DB
+	notifier Notifier // может быть nil (пуши отключены)
+}
+
+func NewService(db *database.DB, notifier Notifier) *Service {
+	return &Service{db: db, notifier: notifier}
 }
 
 // StoreMessage сохраняет сообщение для оффлайн доставки
@@ -45,6 +50,12 @@ func (s *Service) StoreMessage(ctx context.Context, msg *StoreMessageRequest, se
 
 	if err != nil {
 		return fmt.Errorf("failed to store message: %w", err)
+	}
+
+	// Будим получателя пушем (асинхронно - не блокируем ответ)
+	if s.notifier != nil {
+		recipientID := msg.RecipientID
+		go s.notifier.NotifyNewMessage(context.Background(), recipientID)
 	}
 
 	return nil

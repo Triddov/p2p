@@ -36,6 +36,9 @@ type Config struct {
 
 	// CORS
 	AllowedOrigins []string
+
+	// Firebase Admin (push). Пусто - пуши отключены
+	FirebaseCredentials string
 }
 
 func Load() (*Config, error) {
@@ -75,6 +78,8 @@ func Load() (*Config, error) {
 		AllowedOrigins: []string{
 			getEnv("ALLOWED_ORIGIN", "*"),
 		},
+
+		FirebaseCredentials: getEnv("FIREBASE_CREDENTIALS", ""),
 	}, nil
 }
 

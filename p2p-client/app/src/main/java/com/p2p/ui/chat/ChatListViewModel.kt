@@ -42,6 +42,7 @@ class ChatListViewModel @Inject constructor(
         startPendingMessagesPolling()
 
         viewModelScope.launch {
+            authRepository.registerFcmToken()
             authRepository.replenishOneTimePrekeysIfNeeded()
             authRepository.rotateSignedPrekeyIfNeeded()
         }
@@ -92,7 +93,8 @@ class ChatListViewModel @Inject constructor(
     }
 
     companion object {
-        private const val POLL_INTERVAL_MS = 15_000L
+        // С FCM поллинг - лишь fallback (push будит сам), поэтому редкий
+        private const val POLL_INTERVAL_MS = 60_000L
     }
 }
 

@@ -18,6 +18,12 @@ interface ApiService {
     @PUT("api/users/discoverable")
     suspend fun setDiscoverable(@Body request: SetDiscoverableRequest)
 
+    @PUT("api/users/fcm-token")
+    suspend fun registerFcmToken(@Body request: FcmTokenRequest)
+
+    @HTTP(method = "DELETE", path = "api/users/fcm-token", hasBody = true)
+    suspend fun deleteFcmToken(@Body request: FcmTokenRequest)
+
     @GET("api/users/search")
     suspend fun searchUsers(@Query("q") query: String): SearchUsersResponse
 

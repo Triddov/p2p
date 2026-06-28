@@ -49,6 +49,15 @@ COMMENT ON COLUMN users.identity_public_key IS 'Ed25519 public key (32 bytes). T
 COMMENT ON COLUMN users.username IS 'Public username used for search.';
 
 
+CREATE TABLE device_tokens (
+    token      VARCHAR(255) PRIMARY KEY,
+    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    platform   VARCHAR(16) NOT NULL DEFAULT 'android',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_device_tokens_user ON device_tokens(user_id);
+
+
 -- NOTE: Email verification codes live in Redis (key "sms_code:{email}", TTL 5 min).
 -- No DB table needed.
 

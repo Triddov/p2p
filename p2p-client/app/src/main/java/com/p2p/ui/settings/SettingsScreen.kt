@@ -36,6 +36,7 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsState()
     val discoverable by viewModel.discoverable.collectAsState()
     val appLockEnabled by viewModel.appLockEnabled.collectAsState()
+    val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
     val context = LocalContext.current
 
     var showPinSetup by remember { mutableStateOf(false) }
@@ -59,10 +60,17 @@ fun SettingsScreen(
             SectionHeader("Notifications")
             ListItem(
                 headlineContent = { Text("Push notifications") },
-                supportingContent = { Text("Coming soon") },
+                supportingContent = { Text("Show notifications for new messages") },
                 leadingContent = { Icon(Icons.Default.NotificationsNone, contentDescription = null) },
                 trailingContent = {
-                    Switch(checked = false, enabled = false, onCheckedChange = {})
+                    Switch(
+                        checked = notificationsEnabled,
+                        onCheckedChange = { viewModel.setNotificationsEnabled(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.onTertiary,
+                            checkedTrackColor = MaterialTheme.colorScheme.tertiary
+                        )
+                    )
                 }
             )
 

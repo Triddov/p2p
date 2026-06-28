@@ -70,10 +70,19 @@ jobs:
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_B64 }}
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          script: cd $HOME/apps/p2p-backend && bash start_prod.sh
+          envs: FIREBASE_SA
+          script: |
+            mkdir -p $HOME/apps/p2p-backend
+            # Firebase service-account из секрета (base64) — для FCM-пушей
+            if [ -n "$FIREBASE_SA" ]; then
+              echo "$FIREBASE_SA" | base64 -d > $HOME/apps/p2p-backend/firebase.json
+            fi
+            cd $HOME/apps/p2p-backend && bash start_prod.sh
