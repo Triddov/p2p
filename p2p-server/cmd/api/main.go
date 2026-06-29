@@ -59,6 +59,12 @@ func main() {
 
 	log.Println("Connected to PostgreSQL")
 
+	// Применяем миграции схемы (идемпотентно;)
+	if err := db.RunMigrations(); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+	log.Println("Database migrations are up to date")
+
 	// Connect to Redis
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.RedisAddr,

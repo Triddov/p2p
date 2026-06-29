@@ -15,7 +15,6 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./sql/init/schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql
     networks:
       - p2p-backend-net
     healthcheck:
